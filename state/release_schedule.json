@@ -1,0 +1,110 @@
+{
+  "consecutive_errors": 0,
+  "games": {
+    "15560": {
+      "date_text": "9月24日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/3712619916cbbcfd52eec6e64a21280c.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "BanG Dream! Our Notes",
+      "url": "https://gamewith.jp/gamedb/15560"
+    },
+    "16987": {
+      "date_text": "27年1月",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/e6dfe33ace8680c43b1beaad7511913e.jpg",
+      "notified": true,
+      "precision": "month",
+      "title": "ディズニー スパークリンク・スターズ",
+      "url": "https://gamewith.jp/gamedb/16987"
+    },
+    "17053": {
+      "date_text": "9月30日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/c8a135f39543aac70817c6c5f8b3aa94.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "死神少年",
+      "url": "https://gamewith.jp/gamedb/17053"
+    },
+    "17667": {
+      "date_text": "26年12月",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/ec725fcd16c9c850fe09f5a716570c5f.jpg",
+      "notified": true,
+      "precision": "month",
+      "title": "スライムの世界　ぷにっと冒険記",
+      "url": "https://gamewith.jp/gamedb/17667"
+    },
+    "17889": {
+      "date_text": "26年9月",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/dddbbdcb2303939c68525561a2452ed5.jpg",
+      "notified": true,
+      "precision": "month",
+      "title": "FLICK ADVENTURE",
+      "url": "https://gamewith.jp/gamedb/17889"
+    },
+    "17981": {
+      "date_text": "11月2日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/6388bd4b7672e21151dc194d5d2ecef8.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "GALAST（ギャラスト）",
+      "url": "https://gamewith.jp/gamedb/17981"
+    },
+    "18035": {
+      "date_text": "12月31日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/46fc13635206a9c7a7d18d80b9f6701a.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "POMU-みんなと一緒に世界樹を育てる街-",
+      "url": "https://gamewith.jp/gamedb/18035"
+    },
+    "18090": {
+      "date_text": "26年10月",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/5f78311f86e86c21169c27f3850b657b.jpg",
+      "notified": true,
+      "precision": "month",
+      "title": "混血のカレコレ ミラーラッシュ",
+      "url": "https://gamewith.jp/gamedb/18090"
+    },
+    "18255": {
+      "date_text": "26年10月",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/60dfd2181c3407cf283a862e099b38de.jpg",
+      "notified": true,
+      "precision": "month",
+      "title": "ドラゴンレイド：アナザーワールド",
+      "url": "https://gamewith.jp/gamedb/18255"
+    },
+    "18303": {
+      "date_text": "9月22日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/6bdfee948a55945b55b88f6ea08359b5.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "スチームパンク：クロノ要塞",
+      "url": "https://gamewith.jp/gamedb/18303"
+    },
+    "18367": {
+      "date_text": "10月22日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/be686a461181d4e3489f07d83939c759.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "ルネの冒険者カフェ 〜ほのぼのカフェ経営と小さな冒険〜",
+      "url": "https://gamewith.jp/gamedb/18367"
+    },
+    "18483": {
+      "date_text": "10月25日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/1a35a38342d03077553a2e26f51682a6.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "キタキタ王様",
+      "url": "https://gamewith.jp/gamedb/18483"
+    },
+    "2165": {
+      "date_text": "10月7日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/6fc948e2b063050cd058712e506ab755.jpg",
+      "notified": true,
+      "precision": "day",
+      "title": "マビノギモバイル",
+      "url": "https://gamewith.jp/gamedb/2165"
+    }
+  },
+  "queue": []
+}
