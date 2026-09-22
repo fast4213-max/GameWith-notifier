@@ -5,14 +5,15 @@
     次回実行（1時間後）に任せる。ただし連続失敗がCONSECUTIVE_FAILURE_ALERT_THRESHOLD回に
     達するたびにニュースチャンネルへエスカレーション通知する。
   - ページ構造エラー（想定した要素が見つからない）→ リトライしても直らないため、
-    その場でニュースチャンネルへ通知する。
+    その場でニュースチャンネルへ通知する。ただし直っていない間は毎時間同じ通知が
+    飛ぶことになるため、同一内容の再通知は復旧するまで抑制する。
 """
 from __future__ import annotations
 
 import logging
 import os
 import sys
-from typing import Any
+from typing import Any, Optional
 
 import config
 import differ
@@ -22,6 +23,31 @@ import state_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("gamewith-notifier")
+
+
+class _AppliPage:
+    """/appli は「新作」「リリース予定」の両方で使うため、1回の実行で1度だけ取得する。
+
+    2回取得すると無駄なアクセスになるうえ、取得の間にページが更新されると
+    2つのチャンネルで食い違ったスナップショットを見ることになる。
+    """
+
+    def __init__(self) -> None:
+        self._html: Optional[str] = None
+        self._error: Optional[Exception] = None
+
+    def html(self) -> str:
+        if self._error is not None:
+            raise self._error
+        if self._html is None:
+            try:
+                self._html = scraper.fetch_html(
+                    config.APPLI_URL, config.FETCH_RETRIES, config.FETCH_BACKOFF_SECONDS
+                )
+            except scraper.FetchError as exc:
+                self._error = exc
+                raise
+        return self._html
 
 
 def _state_path(name: str) -> str:
@@ -47,8 +73,14 @@ def _handle_fetch_error(state: dict[str, Any], channel_label: str, exc: Exceptio
         )
 
 
-def _handle_parse_error(channel_label: str, exc: Exception) -> None:
+def _handle_parse_error(state: dict[str, Any], channel_label: str, exc: Exception) -> None:
+    """ページ構造エラーを通知する。直るまで毎時間同じ通知を飛ばさないよう抑制する。"""
     logger.error("%s: ページ構造エラー: %s", channel_label, exc)
+    message = str(exc)
+    if state.get("last_parse_error") == message:
+        logger.info("%s: 同一のページ構造エラーが継続中のため通知は抑制しました", channel_label)
+        return
+    state["last_parse_error"] = message
     _notify_error_to_news(
         notifier.build_error_embed(channel_label, f"ページ構造が変わった可能性があります（要コード確認）: {exc}")
     )
@@ -63,22 +95,39 @@ def _drain_and_notify(
     carry_over = to_send[config.MAX_NOTIFY_PER_RUN :]
 
     sent = 0
-    for embed in send_now:
+    dropped = 0
+    for index, embed in enumerate(send_now):
         try:
             notifier.send_embed(webhook_url, embed)
             sent += 1
+        except notifier.PermanentNotifyError:
+            # 再送しても通らない1件でqueueの先頭を詰まらせない。破棄して次へ進む
+            dropped += 1
+            logger.exception("%s: 送信できない通知を破棄しました: %r", channel_label, embed.get("title"))
         except Exception:
             logger.exception("%s: 通知送信に失敗しました。残りをqueueに戻します", channel_label)
-            carry_over = send_now[sent:] + carry_over
+            carry_over = send_now[index:] + carry_over
             break
 
-    if len(to_send) > config.MAX_NOTIFY_PER_RUN and sent == len(send_now):
+    if len(to_send) > config.MAX_NOTIFY_PER_RUN and sent + dropped == len(send_now):
         logger.info(
             "%s: 新着が上限(%d件)を超えたため%d件を次回に持ち越します",
             channel_label,
             config.MAX_NOTIFY_PER_RUN,
             len(carry_over),
         )
+
+    # Webhook設定ミス等で送信がずっと失敗し続けるとqueueが無限に伸びるため、上限を設ける。
+    if len(carry_over) > config.MAX_QUEUE_SIZE:
+        overflow = len(carry_over) - config.MAX_QUEUE_SIZE
+        logger.error(
+            "%s: queueが上限(%d件)を超えたため古い%d件を破棄します（Webhook設定を確認してください）",
+            channel_label,
+            config.MAX_QUEUE_SIZE,
+            overflow,
+        )
+        carry_over = carry_over[overflow:]
+
     logger.info("%s: %d件通知（queue残り%d件）", channel_label, sent, len(carry_over))
     return carry_over
 
@@ -87,7 +136,8 @@ def run_news() -> None:
     channel_label = "最新ニュース"
     path = _state_path("news.json")
     state = state_manager.load_json(path, {"known_ids": [], "queue": [], "consecutive_errors": 0})
-    known_ids = set(state.get("known_ids", []))
+    previous_known = list(state.get("known_ids", []))
+    known_ids = set(previous_known)
 
     try:
         html = scraper.fetch_html(config.NEWS_URL, config.FETCH_RETRIES, config.FETCH_BACKOFF_SECONDS)
@@ -97,69 +147,71 @@ def run_news() -> None:
         state_manager.save_json(path, state)
         return
     except scraper.ParseError as exc:
-        _handle_parse_error(channel_label, exc)
+        _handle_parse_error(state, channel_label, exc)
         state_manager.save_json(path, state)
         return
 
     state["consecutive_errors"] = 0
-    new_items, updated_ids = differ.diff_simple_list(items, known_ids)
+    state["last_parse_error"] = None
+    new_items, updated_ids = differ.diff_simple_list(items, known_ids, previous_known)
     # 一覧は新しい順のため、古い順に通知した方がDiscord上でも時系列が自然になる
     new_embeds = [notifier.build_news_embed(item) for item in reversed(new_items)]
 
     state["queue"] = _drain_and_notify(
         state.get("queue", []), new_embeds, config.DISCORD_WEBHOOK_NEWS, channel_label
     )
-    state["known_ids"] = sorted(updated_ids)
+    state["known_ids"] = updated_ids
     state_manager.save_json(path, state)
 
 
-def run_new_titles() -> None:
+def run_new_titles(page: _AppliPage) -> None:
     channel_label = "新作"
     path = _state_path("new_titles.json")
     state = state_manager.load_json(path, {"known_ids": [], "queue": [], "consecutive_errors": 0})
-    known_ids = set(state.get("known_ids", []))
+    previous_known = list(state.get("known_ids", []))
+    known_ids = set(previous_known)
 
     try:
-        html = scraper.fetch_html(config.APPLI_URL, config.FETCH_RETRIES, config.FETCH_BACKOFF_SECONDS)
-        items = scraper.scrape_new_titles(html)
+        items = scraper.scrape_new_titles(page.html())
     except scraper.FetchError as exc:
         _handle_fetch_error(state, channel_label, exc)
         state_manager.save_json(path, state)
         return
     except scraper.ParseError as exc:
-        _handle_parse_error(channel_label, exc)
+        _handle_parse_error(state, channel_label, exc)
         state_manager.save_json(path, state)
         return
 
     state["consecutive_errors"] = 0
-    new_items, updated_ids = differ.diff_simple_list(items, known_ids)
+    state["last_parse_error"] = None
+    new_items, updated_ids = differ.diff_simple_list(items, known_ids, previous_known)
     new_embeds = [notifier.build_new_title_embed(item) for item in reversed(new_items)]
 
     state["queue"] = _drain_and_notify(
         state.get("queue", []), new_embeds, config.DISCORD_WEBHOOK_NEW_TITLES, channel_label
     )
-    state["known_ids"] = sorted(updated_ids)
+    state["known_ids"] = updated_ids
     state_manager.save_json(path, state)
 
 
-def run_release_schedule() -> None:
+def run_release_schedule(page: _AppliPage) -> None:
     channel_label = "リリース予定"
     path = _state_path("release_schedule.json")
     state = state_manager.load_json(path, {"games": {}, "queue": [], "consecutive_errors": 0})
 
     try:
-        html = scraper.fetch_html(config.APPLI_URL, config.FETCH_RETRIES, config.FETCH_BACKOFF_SECONDS)
-        items = scraper.scrape_release_schedule(html)
+        items = scraper.scrape_release_schedule(page.html())
     except scraper.FetchError as exc:
         _handle_fetch_error(state, channel_label, exc)
         state_manager.save_json(path, state)
         return
     except scraper.ParseError as exc:
-        _handle_parse_error(channel_label, exc)
+        _handle_parse_error(state, channel_label, exc)
         state_manager.save_json(path, state)
         return
 
     state["consecutive_errors"] = 0
+    state["last_parse_error"] = None
     to_notify, updated_games = differ.diff_release_schedule(items, state.get("games", {}))
     new_embeds = [notifier.build_release_embed(entry["item"], entry["kind"]) for entry in to_notify]
 
@@ -171,11 +223,12 @@ def run_release_schedule() -> None:
 
 
 def main() -> int:
+    page = _AppliPage()
     error_count = 0
     for label, fn in (
         ("最新ニュース", run_news),
-        ("新作", run_new_titles),
-        ("リリース予定", run_release_schedule),
+        ("新作", lambda: run_new_titles(page)),
+        ("リリース予定", lambda: run_release_schedule(page)),
     ):
         try:
             fn()

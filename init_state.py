@@ -9,11 +9,23 @@ import logging
 import os
 
 import config
+import date_utils
 import scraper
 import state_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("gamewith-notifier.init")
+
+
+def _dedupe(ids) -> list[str]:
+    """掲載順（新しい順）を保ったまま重複を除く。known_idsは「最近見た順」で保持する。"""
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in ids:
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def main() -> None:
@@ -22,7 +34,7 @@ def main() -> None:
     news_items = scraper.scrape_news(scraper.fetch_html(config.NEWS_URL))
     state_manager.save_json(
         os.path.join(config.STATE_DIR, "news.json"),
-        {"known_ids": sorted({i.id for i in news_items}), "queue": [], "consecutive_errors": 0},
+        {"known_ids": _dedupe(i.id for i in news_items), "queue": [], "consecutive_errors": 0},
     )
     logger.info("news.json: %d件を既読化", len(news_items))
 
@@ -31,11 +43,12 @@ def main() -> None:
     new_title_items = scraper.scrape_new_titles(appli_html)
     state_manager.save_json(
         os.path.join(config.STATE_DIR, "new_titles.json"),
-        {"known_ids": sorted({i.id for i in new_title_items}), "queue": [], "consecutive_errors": 0},
+        {"known_ids": _dedupe(i.id for i in new_title_items), "queue": [], "consecutive_errors": 0},
     )
     logger.info("new_titles.json: %d件を既読化", len(new_title_items))
 
     release_items = scraper.scrape_release_schedule(appli_html)
+    today = date_utils.today_jst()
     games = {}
     skipped = 0
     for item in release_items:
@@ -52,6 +65,7 @@ def main() -> None:
             "date_text": item.date_text,
             "precision": item.parsed_date.precision,
             "notified": True,
+            "last_seen": today.isoformat(),
         }
     state_manager.save_json(
         os.path.join(config.STATE_DIR, "release_schedule.json"),

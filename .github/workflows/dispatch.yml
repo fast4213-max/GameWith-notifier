@@ -14,6 +14,12 @@ on:
 permissions:
   contents: write
 
+# 外部cronとworkflow_dispatchが重なって同時実行されると、同じ新着を2回通知したうえ
+# stateのpushが衝突する。実行中のジョブは打ち切らず、直列に流す。
+concurrency:
+  group: gamewith-notifier
+  cancel-in-progress: false
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -51,11 +57,27 @@ jobs:
           DISCORD_WEBHOOK_NEW_TITLES: ${{ secrets.DISCORD_WEBHOOK_NEW_TITLES }}
         run: python test_notify.py
 
+      # always() が無いと main.py が異常終了した際にこのステップごとスキップされ、
+      # 「通知は送ったのにstateが保存されない」＝次回実行で同じ通知が再送される状態になる。
       - name: Commit state changes
-        if: steps.mode.outputs.mode != 'test-notify'
+        if: always() && steps.mode.outputs.mode != 'test-notify'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add state/
-          git diff --cached --quiet || git commit -m "chore: update state [skip ci]"
-          git push
+          if git diff --cached --quiet; then
+            echo "stateに変更なし"
+            exit 0
+          fi
+          git commit -m "chore: update state [skip ci]"
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              echo "push成功（試行${attempt}回目）"
+              exit 0
+            fi
+            echo "push失敗。リモートの変更を取り込んで再試行します（試行${attempt}回目）"
+            git pull --rebase origin "${GITHUB_REF_NAME}" || exit 1
+            sleep $((attempt * 2))
+          done
+          echo "::error::stateのpushに失敗しました"
+          exit 1

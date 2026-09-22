@@ -15,19 +15,52 @@ COLOR_RELEASE_UPDATED = 0x9B59B6
 COLOR_NEW_TITLE = 0x3498DB
 COLOR_ERROR = 0xE74C3C
 
+# Discordの上限。超えると400で恒久的に弾かれるため、送信前に丸める。
+TITLE_MAX = 256
+DESCRIPTION_MAX = 4096
+FIELD_VALUE_MAX = 1024
+
+
+class PermanentNotifyError(Exception):
+    """再送しても必ず失敗する送信エラー（400等）。queueに戻さず破棄する。"""
+
+
+def _truncate(text: str, limit: int) -> str:
+    text = str(text)
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _sanitize(embed: dict[str, Any]) -> dict[str, Any]:
+    embed = dict(embed)
+    if "title" in embed:
+        embed["title"] = _truncate(embed["title"], TITLE_MAX)
+    if "description" in embed:
+        embed["description"] = _truncate(embed["description"], DESCRIPTION_MAX)
+    if embed.get("fields"):
+        embed["fields"] = [
+            {**f, "value": _truncate(f.get("value", ""), FIELD_VALUE_MAX)} for f in embed["fields"]
+        ]
+    return embed
+
 
 def send_embed(webhook_url: str, embed: dict[str, Any]) -> None:
     if not webhook_url:
         raise RuntimeError("Webhook URLが設定されていません（GitHub Secretsを確認してください）")
 
-    resp = requests.post(webhook_url, json={"embeds": [embed]}, timeout=REQUEST_TIMEOUT)
+    payload = {"embeds": [_sanitize(embed)]}
+    resp = requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
     if resp.status_code == 429:
         try:
             retry_after = float(resp.json().get("retry_after", 1))
         except Exception:
             retry_after = 1.0
         time.sleep(retry_after + 0.5)
-        resp = requests.post(webhook_url, json={"embeds": [embed]}, timeout=REQUEST_TIMEOUT)
+        resp = requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
+
+    # 400番台（429を除く）はリクエスト内容自体の問題なので、何度送り直しても通らない。
+    # queueに戻すとその1件が詰まって後続の通知が永久に出せなくなるため、破棄扱いにする。
+    if 400 <= resp.status_code < 500 and resp.status_code != 429:
+        raise PermanentNotifyError(f"Discordに拒否されました（HTTP {resp.status_code}）: {resp.text[:300]}")
 
     resp.raise_for_status()
     time.sleep(SEND_INTERVAL_SECONDS)
