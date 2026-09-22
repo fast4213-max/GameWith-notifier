@@ -1,6 +1,26 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/15584/articles/63543",
+    "gamedb/10952/articles/63536",
+    "gamedb/14150/articles/63529",
+    "gamedb/22/articles/63528",
+    "gamedb/10970/articles/63524",
+    "gamedb/17642/articles/63520",
+    "gamedb/13020/articles/63519",
+    "gamedb/2209/articles/63516",
+    "gamedb/14501/articles/63518",
+    "gamedb/11599/articles/63514",
+    "gamedb/1679/articles/63511",
+    "gamedb/7474/articles/63509",
+    "gamedb/4934/articles/63505",
+    "gamedb/7132/articles/63502",
+    "gamedb/3618/articles/63503",
+    "gamedb/10783/articles/63500",
+    "pc/article/show/4338",
+    "gamedb/13883/articles/63495",
+    "gamedb/16721/articles/63494",
+    "lp.gamewith.jp/wutheringwaves/vtuber_vol1",
     "4338",
     "63494",
     "63495",
@@ -22,5 +42,6 @@
     "63543",
     "vtuber_vol1"
   ],
+  "last_parse_error": null,
   "queue": []
 }
