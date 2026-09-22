@@ -8,7 +8,7 @@ on:
       mode:
         description: "実行モード"
         type: choice
-        options: [run-notify, init-notify, test-notify, oneoff-release]
+        options: [run-notify, init-notify, test-notify]
         default: run-notify
 
 permissions:
@@ -50,12 +50,6 @@ jobs:
           DISCORD_WEBHOOK_RELEASE_SCHEDULE: ${{ secrets.DISCORD_WEBHOOK_RELEASE_SCHEDULE }}
           DISCORD_WEBHOOK_NEW_TITLES: ${{ secrets.DISCORD_WEBHOOK_NEW_TITLES }}
         run: python test_notify.py
-
-      - name: Run one-off release schedule blast (一時的な使い切り実行)
-        if: steps.mode.outputs.mode == 'oneoff-release'
-        env:
-          DISCORD_WEBHOOK_RELEASE_SCHEDULE: ${{ secrets.DISCORD_WEBHOOK_RELEASE_SCHEDULE }}
-        run: python oneoff_notify_release_schedule.py
 
       - name: Commit state changes
         if: steps.mode.outputs.mode != 'test-notify'
