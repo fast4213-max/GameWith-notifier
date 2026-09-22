@@ -1,0 +1,61 @@
+name: GameWith Discord Notifier
+
+on:
+  repository_dispatch:
+    types: [run-notify, init-notify, test-notify]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "実行モード"
+        type: choice
+        options: [run-notify, init-notify, test-notify]
+        default: run-notify
+
+permissions:
+  contents: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine mode
+        id: mode
+        run: echo "mode=${{ github.event.action || inputs.mode || 'run-notify' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Run notifier (通常実行)
+        if: steps.mode.outputs.mode == 'run-notify'
+        env:
+          DISCORD_WEBHOOK_NEWS: ${{ secrets.DISCORD_WEBHOOK_NEWS }}
+          DISCORD_WEBHOOK_RELEASE_SCHEDULE: ${{ secrets.DISCORD_WEBHOOK_RELEASE_SCHEDULE }}
+          DISCORD_WEBHOOK_NEW_TITLES: ${{ secrets.DISCORD_WEBHOOK_NEW_TITLES }}
+        run: python main.py
+
+      - name: Run init (初回既読化・通知なし)
+        if: steps.mode.outputs.mode == 'init-notify'
+        run: python init_state.py
+
+      - name: Run test notify (疎通確認)
+        if: steps.mode.outputs.mode == 'test-notify'
+        env:
+          DISCORD_WEBHOOK_NEWS: ${{ secrets.DISCORD_WEBHOOK_NEWS }}
+          DISCORD_WEBHOOK_RELEASE_SCHEDULE: ${{ secrets.DISCORD_WEBHOOK_RELEASE_SCHEDULE }}
+          DISCORD_WEBHOOK_NEW_TITLES: ${{ secrets.DISCORD_WEBHOOK_NEW_TITLES }}
+        run: python test_notify.py
+
+      - name: Commit state changes
+        if: steps.mode.outputs.mode != 'test-notify'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state/
+          git diff --cached --quiet || git commit -m "chore: update state [skip ci]"
+          git push
