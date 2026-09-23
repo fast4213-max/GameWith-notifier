@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date
 from typing import Any
 
@@ -76,9 +77,11 @@ def diff_release_schedule(
       - 月日まで判明した時点（初回 or pendingからの更新） → 通知（kind="new"）
       - 通知済みの後に日付表記が変化（延期・前倒し） → 再通知（kind="updated"）
         「9月22日 → 26年12月」のように精度が粗くなる延期も再通知の対象。
+      - 通知済みの後に「未定」等（数字を含まない解析不能表記）へ変化 → 延期通知（kind="postponed"）
 
     戻り値: (to_notify, updated_games_state)
-      to_notify の要素は {"item": GameListItem, "kind": "new" | "updated"}
+      to_notify の要素は {"item": GameListItem, "kind": "new" | "updated" | "postponed"}
+      postponed の場合は "previous"（変更前の日付表記）も含む
     """
     to_notify: list[dict[str, Any]] = []
     updated_state: dict[str, dict[str, Any]] = dict(games_state)
@@ -88,10 +91,22 @@ def diff_release_schedule(
         existing = updated_state.get(item.id)
 
         if item.parsed_date is None:
-            # 想定外の日付表記。scraper側でログに残し、次回の再取得に任せる。
-            # 既存レコードは掲載中であることだけ記録する（放置すると掲載中なのに
+            if existing is None:
+                continue  # 想定外の日付表記。scraper側でログに残し、次回の再取得に任せる
+            # 通知済みの項目が「未定」等になった＝延期として通知する。
+            # 数字を含む表記は未対応の日付フォーマットの可能性が高く、延期と決めつけると
+            # 誤通知になるため、掲載中であることだけ記録する（放置すると掲載中なのに
             # GAME_RETENTION_DAYS経過で削除され、日付が戻った時に新規扱いで再通知される）
-            if existing is not None:
+            if (
+                existing.get("notified")
+                and item.date_text != existing.get("date_text")
+                and not re.search(r"\d", item.date_text)
+            ):
+                to_notify.append(
+                    {"item": item, "kind": "postponed", "previous": existing.get("date_text")}
+                )
+                updated_state[item.id] = _make_record(item, notified=True, today=today)
+            else:
                 updated_state[item.id] = {**existing, "last_seen": today.isoformat()}
             continue
 

@@ -166,14 +166,37 @@ class TestDiffReleaseSchedule(unittest.TestCase):
         notify, state = differ.diff_release_schedule([game("1", "未定")], {})
         self.assertEqual((notify, state), ([], {}))
 
-    def test_unparseable_date_keeps_existing_record_alive(self):
-        """掲載中の項目が「未定」表記になっても、保持期限切れで消されないこと。"""
+    def test_unknown_notation_keeps_existing_record_alive(self):
+        """数字を含む未対応表記は延期と決めつけず、保持期限切れで消されないことだけ保証する。"""
         record = {"title": "ゲーム1", "date_text": "9月22日", "precision": "day", "notified": True,
                   "last_seen": "2020-01-01"}
-        notify, state = differ.diff_release_schedule([game("1", "未定")], {"1": record})
+        notify, state = differ.diff_release_schedule([game("1", "9月下旬ごろ予定")], {"1": record})
         self.assertEqual(notify, [])
         self.assertEqual(state["1"]["date_text"], "9月22日")
         self.assertNotEqual(state["1"]["last_seen"], "2020-01-01")
+
+    def test_notified_becomes_undecided_notifies_postponed_once(self):
+        _, state = differ.diff_release_schedule([game("1", "9月22日")], {})
+        notify, state = differ.diff_release_schedule([game("1", "未定")], state)
+        self.assertEqual([(n["kind"], n["previous"]) for n in notify], [("postponed", "9月22日")])
+        self.assertEqual(state["1"]["date_text"], "未定")
+        # 「未定」のままなら再通知しない
+        notify, state = differ.diff_release_schedule([game("1", "未定")], state)
+        self.assertEqual(notify, [])
+        # 日付が再び決まったら更新通知
+        notify, _ = differ.diff_release_schedule([game("1", "12月3日")], state)
+        self.assertEqual([n["kind"] for n in notify], ["updated"])
+
+    def test_pending_becomes_undecided_does_not_notify(self):
+        _, state = differ.diff_release_schedule([game("1", "26年12月")], {})
+        notify, state = differ.diff_release_schedule([game("1", "未定")], state)
+        self.assertEqual(notify, [])
+        self.assertFalse(state["1"]["notified"])
+
+    def test_postponed_embed(self):
+        embed = notifier.build_release_embed(game("1", "未定"), "postponed", "9月22日")
+        self.assertTrue(embed["title"].startswith("⏳ 延期: "))
+        self.assertEqual([f["value"] for f in embed["fields"]], ["未定", "9月22日"])
 
     def test_notation_only_change_does_not_notify(self):
         _, state = differ.diff_release_schedule([game("1", "9月22日")], {})

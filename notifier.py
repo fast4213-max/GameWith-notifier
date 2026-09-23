@@ -12,6 +12,7 @@ SEND_INTERVAL_SECONDS = 1.2  # 連続POST時の簡易レート制限対策
 COLOR_NEWS = 0x2ECC71
 COLOR_RELEASE_NEW = 0xF39C12
 COLOR_RELEASE_UPDATED = 0x9B59B6
+COLOR_RELEASE_POSTPONED = 0x95A5A6
 COLOR_NEW_TITLE = 0x3498DB
 COLOR_ERROR = 0xE74C3C
 
@@ -73,13 +74,18 @@ def build_news_embed(item) -> dict:
     return embed
 
 
-def build_release_embed(item, kind: str) -> dict:
-    prefix = "🔁 更新: " if kind == "updated" else ""
+def build_release_embed(item, kind: str, previous_date: str | None = None) -> dict:
+    prefix = {"updated": "🔁 更新: ", "postponed": "⏳ 延期: "}.get(kind, "")
+    fields = [{"name": "配信予定日", "value": item.date_text, "inline": True}]
+    if kind == "postponed" and previous_date:
+        fields.append({"name": "変更前", "value": previous_date, "inline": True})
     embed: dict[str, Any] = {
         "title": f"{prefix}{item.title}",
         "url": item.url,
-        "fields": [{"name": "配信予定日", "value": item.date_text, "inline": True}],
-        "color": COLOR_RELEASE_UPDATED if kind == "updated" else COLOR_RELEASE_NEW,
+        "fields": fields,
+        "color": {"updated": COLOR_RELEASE_UPDATED, "postponed": COLOR_RELEASE_POSTPONED}.get(
+            kind, COLOR_RELEASE_NEW
+        ),
     }
     if item.image_url:
         embed["image"] = {"url": item.image_url}

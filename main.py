@@ -214,7 +214,10 @@ def run_release_schedule(page: _AppliPage) -> None:
     state["consecutive_errors"] = 0
     state["last_parse_error"] = None
     to_notify, updated_games = differ.diff_release_schedule(items, state.get("games", {}))
-    new_embeds = [notifier.build_release_embed(entry["item"], entry["kind"]) for entry in to_notify]
+    new_embeds = [
+        notifier.build_release_embed(entry["item"], entry["kind"], entry.get("previous"))
+        for entry in to_notify
+    ]
 
     state["queue"] = _drain_and_notify(
         state.get("queue", []), new_embeds, config.DISCORD_WEBHOOK_RELEASE_SCHEDULE, channel_label
