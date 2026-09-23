@@ -9,7 +9,7 @@ import logging
 from datetime import date
 from typing import Any
 
-from date_utils import today_jst
+from date_utils import ParsedReleaseDate, parse_release_date, today_jst
 from scraper import GameListItem
 
 logger = logging.getLogger("gamewith-notifier.differ")
@@ -39,13 +39,30 @@ def diff_simple_list(
 
     戻り値のIDリストは「最近見た順」に並べ、KNOWN_IDS_LIMIT件で打ち切る。
     """
-    new_items = [item for item in items if not _is_known(item, known_ids)]
+    # 同じ項目が一覧に2回載っていると、二重通知・known_idsの重複が起きるため先に除く
+    unique_items: list = []
+    seen: set[str] = set()
+    for item in items:
+        if item.id not in seen:
+            seen.add(item.id)
+            unique_items.append(item)
+    new_items = [item for item in unique_items if not _is_known(item, known_ids)]
 
-    current_ids = [item.id for item in items]
+    current_ids = [item.id for item in unique_items]
     current_set = set(current_ids)
     older = [i for i in (previous_known or sorted(known_ids)) if i not in current_set]
     updated_known = (current_ids + older)[:KNOWN_IDS_LIMIT]
     return new_items, updated_known
+
+
+def drop_legacy_news_ids(known_ids: list[str], current_ids: set[str]) -> list[str]:
+    """一覧から外れた記事の旧方式ニュースID（URL末尾のみ＝"/"を含まない）を除く。
+
+    掲載中の記事は diff_simple_list が新方式で記録し直すため、ここで消えるのは
+    一覧から既に外れた記事の旧IDだけ。残しておくと番号の衝突で新着を取りこぼす。
+    （gamewith.jp直下1階層のURLは新方式でも"/"を含まないため、掲載中のIDは残す）
+    """
+    return [i for i in known_ids if "/" in i or i in current_ids]
 
 
 def diff_release_schedule(
@@ -68,10 +85,15 @@ def diff_release_schedule(
     today = today_jst()
 
     for item in items:
-        if item.parsed_date is None:
-            continue  # 想定外の日付表記。scraper側でログに残し、次回の再取得に任せる
-
         existing = updated_state.get(item.id)
+
+        if item.parsed_date is None:
+            # 想定外の日付表記。scraper側でログに残し、次回の再取得に任せる。
+            # 既存レコードは掲載中であることだけ記録する（放置すると掲載中なのに
+            # GAME_RETENTION_DAYS経過で削除され、日付が戻った時に新規扱いで再通知される）
+            if existing is not None:
+                updated_state[item.id] = {**existing, "last_seen": today.isoformat()}
+            continue
 
         if existing is None:
             notify = item.parsed_date.precision == "day"
@@ -89,12 +111,20 @@ def diff_release_schedule(
                 updated_state[item.id] = _make_record(item, notified=False, today=today)
             continue
 
-        # 通知済み: 日付表記が変わっていれば延期・前倒しとして再通知
-        if item.date_text != existing.get("date_text"):
+        # 通知済み: 日付が変わっていれば延期・前倒しとして再通知。
+        # 「9月24日」→「9月24日（水）」のような表記ゆれだけの変化では再通知しない
+        if _date_changed(existing.get("date_text"), item.parsed_date, today):
             to_notify.append({"item": item, "kind": "updated"})
         updated_state[item.id] = _make_record(item, notified=True, today=today)
 
     return to_notify, _prune_games(updated_state, today)
+
+
+def _date_changed(previous_text: str | None, current: ParsedReleaseDate, today: date) -> bool:
+    previous = parse_release_date(previous_text, today) if previous_text else None
+    if previous is None:
+        return previous_text != current.text
+    return (previous.precision, previous.approx_date) != (current.precision, current.approx_date)
 
 
 def _make_record(item: GameListItem, notified: bool, today=None) -> dict[str, Any]:

@@ -58,7 +58,12 @@ def parse_release_date(text: str, today: date | None = None) -> ParsedReleaseDat
 
 def _infer_year(today: date, month: int, day: int) -> int:
     """月日のみの表記から年を推定する。180日以上過去になる場合は翌年とみなす（年またぎ対応）。"""
-    candidate = date(today.year, month, day)
+    try:
+        candidate = date(today.year, month, day)
+    except ValueError:
+        # 今年に存在しない日付（うるう年でない年の「2月29日」）は翌年以降の話とみなす
+        date(today.year + 1, month, day)  # 翌年にも無い日付（「13月40日」等）はここでValueError
+        return today.year + 1
     if (today - candidate).days > 180:
         return today.year + 1
     return today.year

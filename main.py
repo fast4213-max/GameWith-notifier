@@ -154,6 +154,7 @@ def run_news() -> None:
     state["consecutive_errors"] = 0
     state["last_parse_error"] = None
     new_items, updated_ids = differ.diff_simple_list(items, known_ids, previous_known)
+    updated_ids = differ.drop_legacy_news_ids(updated_ids, {item.id for item in items})
     # 一覧は新しい順のため、古い順に通知した方がDiscord上でも時系列が自然になる
     new_embeds = [notifier.build_news_embed(item) for item in reversed(new_items)]
 

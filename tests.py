@@ -51,6 +51,9 @@ class TestParseReleaseDate(unittest.TestCase):
         # 9月時点の「1月15日」は翌年扱い
         self.assertEqual(parse_release_date("1月15日", TODAY).approx_date, date(2027, 1, 15))
 
+    def test_leap_day_in_non_leap_year(self):
+        self.assertEqual(parse_release_date("2月29日", date(2027, 9, 22)).approx_date, date(2028, 2, 29))
+
     def test_unparseable(self):
         self.assertIsNone(parse_release_date("未定", TODAY))
         self.assertIsNone(parse_release_date("13月40日", TODAY))
@@ -92,6 +95,23 @@ class TestNewsId(unittest.TestCase):
         with self.assertRaises(scraper.ParseError):
             scraper.scrape_news("<html></html>")
 
+    def test_legacy_ids_are_dropped_after_migration(self):
+        """移行後に旧IDが残り、末尾番号が同じ別記事を取りこぼさないこと。"""
+        items = scraper.scrape_news(self.HTML.replace("pc/article/show/4338", "pc/article/show/9999"))
+        _, known = differ.diff_simple_list(items, {"4338", "5555"}, ["4338", "5555"])
+        known = differ.drop_legacy_news_ids(known, {i.id for i in items})
+        self.assertEqual(known, ["gamedb/1/articles/4338", "pc/article/show/9999"])
+
+        later = scraper.scrape_news(self.HTML.replace("gamedb/1/articles/4338", "pc/article/show/5555"))
+        new_items, _ = differ.diff_simple_list(later, set(known), known)
+        self.assertEqual([i.id for i in new_items], ["pc/article/show/5555", "pc/article/show/4338"])
+
+    def test_single_segment_id_on_page_is_kept(self):
+        html = self.HTML.replace("https://gamewith.jp/gamedb/1/articles/4338", "https://gamewith.jp/special")
+        items = scraper.scrape_news(html)
+        _, known = differ.diff_simple_list(items, set())
+        self.assertIn("special", differ.drop_legacy_news_ids(known, {i.id for i in items}))
+
 
 class TestDiffSimpleList(unittest.TestCase):
     def test_known_ids_are_capped_and_recency_ordered(self):
@@ -101,6 +121,12 @@ class TestDiffSimpleList(unittest.TestCase):
         self.assertEqual(len(known), differ.KNOWN_IDS_LIMIT)
         self.assertEqual(known[0], "new1")  # 直近に見たものが先頭
         self.assertIn("old0", known)  # 掲載中に近い分は残る
+
+    def test_duplicate_items_notify_once(self):
+        items = [game("1", "9月22日"), game("2", "9月22日"), game("1", "9月22日")]
+        new_items, known = differ.diff_simple_list(items, set())
+        self.assertEqual([i.id for i in new_items], ["1", "2"])
+        self.assertEqual(known, ["1", "2"])
 
 
 class TestDiffReleaseSchedule(unittest.TestCase):
@@ -139,6 +165,21 @@ class TestDiffReleaseSchedule(unittest.TestCase):
     def test_unparseable_date_is_skipped(self):
         notify, state = differ.diff_release_schedule([game("1", "未定")], {})
         self.assertEqual((notify, state), ([], {}))
+
+    def test_unparseable_date_keeps_existing_record_alive(self):
+        """掲載中の項目が「未定」表記になっても、保持期限切れで消されないこと。"""
+        record = {"title": "ゲーム1", "date_text": "9月22日", "precision": "day", "notified": True,
+                  "last_seen": "2020-01-01"}
+        notify, state = differ.diff_release_schedule([game("1", "未定")], {"1": record})
+        self.assertEqual(notify, [])
+        self.assertEqual(state["1"]["date_text"], "9月22日")
+        self.assertNotEqual(state["1"]["last_seen"], "2020-01-01")
+
+    def test_notation_only_change_does_not_notify(self):
+        _, state = differ.diff_release_schedule([game("1", "9月22日")], {})
+        notify, state = differ.diff_release_schedule([game("1", "9月22日（火）")], state)
+        self.assertEqual(notify, [])
+        self.assertEqual(state["1"]["date_text"], "9月22日（火）")
 
     def test_stale_entries_are_pruned(self):
         stale = {"old": {"title": "昔のゲーム", "date_text": "1月1日", "notified": True,
