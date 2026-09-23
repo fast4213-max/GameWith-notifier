@@ -218,28 +218,60 @@ class TestDiffReleaseSchedule(unittest.TestCase):
 
 
 class TestDrainAndNotify(unittest.TestCase):
+    URL = "https://example.invalid"
+
     def test_permanent_error_does_not_block_the_queue(self):
         """400で弾かれる1件がqueue先頭に居座り、後続を永久に止めないこと。"""
         bad, good = {"title": "bad"}, {"title": "good"}
+        delivered = []
 
-        def send(_url, embed):
-            if embed["title"] == "bad":
+        def send_batch(_url, embeds):
+            if any(e["title"] == "bad" for e in embeds):
                 raise notifier.PermanentNotifyError("HTTP 400")
+            delivered.extend(embeds)
 
-        with mock.patch.object(notifier, "send_embed", side_effect=send):
-            carry = main_module._drain_and_notify([bad], [good], "https://example.invalid", "テスト")
+        def send_one(url, embed):
+            send_batch(url, [embed])
+
+        with mock.patch.object(notifier, "send_embeds", side_effect=send_batch), mock.patch.object(
+            notifier, "send_embed", side_effect=send_one
+        ):
+            carry = main_module._drain_and_notify([bad], [good], self.URL, "テスト")
         self.assertEqual(carry, [])
+        self.assertEqual(delivered, [good])  # 巻き添えで正常な通知まで捨てない
 
     def test_transient_error_requeues_the_failed_item(self):
         first, second = {"title": "1"}, {"title": "2"}
-        with mock.patch.object(notifier, "send_embed", side_effect=RuntimeError("timeout")):
-            carry = main_module._drain_and_notify([], [first, second], "https://example.invalid", "テスト")
+        with mock.patch.object(notifier, "send_embeds", side_effect=RuntimeError("timeout")):
+            carry = main_module._drain_and_notify([], [first, second], self.URL, "テスト")
         self.assertEqual(carry, [first, second])  # 送信できなかった分は失われない
+
+    def test_transient_error_in_second_batch_requeues_rest(self):
+        embeds = [{"title": str(i)} for i in range(25)]
+        calls = []
+
+        def send_batch(_url, batch):
+            calls.append(batch)
+            if len(calls) == 2:
+                raise RuntimeError("timeout")
+
+        with mock.patch.object(notifier, "send_embeds", side_effect=send_batch):
+            carry = main_module._drain_and_notify([], embeds, self.URL, "テスト")
+        self.assertEqual(carry, embeds[10:])
+
+    def test_up_to_30_are_sent_in_batches_of_10(self):
+        embeds = [{"title": str(i)} for i in range(35)]
+        with mock.patch.object(notifier, "send_embeds") as send:
+            carry = main_module._drain_and_notify([], embeds, self.URL, "テスト")
+        self.assertEqual(config.MAX_NOTIFY_PER_RUN, 30)
+        self.assertEqual([len(c.args[1]) for c in send.call_args_list], [10, 10, 10])
+        self.assertEqual([e for c in send.call_args_list for e in c.args[1]], embeds[:30])
+        self.assertEqual(carry, embeds[30:])
 
     def test_queue_is_capped(self):
         embeds = [{"title": str(i)} for i in range(config.MAX_QUEUE_SIZE + 60)]
-        with mock.patch.object(notifier, "send_embed", side_effect=RuntimeError("down")):
-            carry = main_module._drain_and_notify([], embeds, "https://example.invalid", "テスト")
+        with mock.patch.object(notifier, "send_embeds", side_effect=RuntimeError("down")):
+            carry = main_module._drain_and_notify([], embeds, self.URL, "テスト")
         self.assertEqual(len(carry), config.MAX_QUEUE_SIZE)
         self.assertEqual(carry[-1]["title"], str(len(embeds) - 1))  # 新しい方を残す
 
@@ -259,6 +291,39 @@ class TestNotifier(unittest.TestCase):
         with mock.patch.object(notifier.requests, "post", return_value=resp):
             with self.assertRaises(notifier.PermanentNotifyError):
                 notifier.send_embed("https://example.invalid", {"title": "x"})
+
+    def test_chunks_respect_total_char_limit(self):
+        embeds = [{"title": "t", "description": "あ" * 2500} for _ in range(5)]
+        chunks = notifier.chunk_embeds(embeds)
+        self.assertEqual([len(c) for c in chunks], [2, 2, 1])
+
+    def test_batch_is_sent_as_one_message(self):
+        resp = mock.Mock(status_code=200, headers={})
+        with mock.patch.object(notifier.requests, "post", return_value=resp) as post, mock.patch.object(
+            notifier.time, "sleep"
+        ):
+            notifier.send_embeds("https://example.invalid", [{"title": str(i)} for i in range(10)])
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(len(post.call_args.kwargs["json"]["embeds"]), 10)
+
+    def test_rate_limited_request_is_retried(self):
+        limited = mock.Mock(status_code=429, headers={})
+        limited.json.return_value = {"retry_after": 2}
+        ok = mock.Mock(status_code=200, headers={})
+        with mock.patch.object(notifier.requests, "post", side_effect=[limited, limited, ok]) as post, mock.patch.object(
+            notifier.time, "sleep"
+        ) as sleep:
+            notifier.send_embeds("https://example.invalid", [{"title": "x"}])
+        self.assertEqual(post.call_count, 3)
+        self.assertEqual(sleep.call_args_list[0].args[0], 2.5)
+
+    def test_waits_for_bucket_reset_when_exhausted(self):
+        resp = mock.Mock(status_code=200, headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset-After": "3.5"})
+        with mock.patch.object(notifier.requests, "post", return_value=resp), mock.patch.object(
+            notifier.time, "sleep"
+        ) as sleep:
+            notifier.send_embeds("https://example.invalid", [{"title": "x"}])
+        self.assertAlmostEqual(sleep.call_args.args[0], 3.7)
 
 
 class TestParseErrorSuppression(unittest.TestCase):

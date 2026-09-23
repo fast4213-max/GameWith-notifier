@@ -16,7 +16,7 @@ DISCORD_WEBHOOK_NEW_TITLES = os.environ.get("DISCORD_WEBHOOK_NEW_TITLES", "")
 STATE_DIR = "state"
 
 # --- 通知・リトライ挙動 ---
-MAX_NOTIFY_PER_RUN = 10  # 1チャンネル・1回の実行あたりの通知上限。超過分はqueueへ
+MAX_NOTIFY_PER_RUN = 30  # 1チャンネル・1回の実行あたりの通知上限。10件ずつ1メッセージにまとめて送る。超過分はqueueへ
 MAX_QUEUE_SIZE = 200  # queueの保持上限。Webhook設定ミス等で送信し続けられない場合の肥大化を防ぐ
 FETCH_RETRIES = 3
 FETCH_BACKOFF_SECONDS = (2, 4, 8)

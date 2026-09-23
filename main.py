@@ -86,6 +86,25 @@ def _handle_parse_error(state: dict[str, Any], channel_label: str, exc: Exceptio
     )
 
 
+def _send_individually(
+    embeds: list[dict], webhook_url: str, channel_label: str
+) -> tuple[int, int, Optional[int]]:
+    """1件ずつ送る。戻り値は(送信数, 破棄数, 一時エラーで中断した位置)。"""
+    sent = dropped = 0
+    for index, embed in enumerate(embeds):
+        try:
+            notifier.send_embed(webhook_url, embed)
+            sent += 1
+        except notifier.PermanentNotifyError:
+            # 再送しても通らない1件でqueueの先頭を詰まらせない。破棄して次へ進む
+            dropped += 1
+            logger.exception("%s: 送信できない通知を破棄しました: %r", channel_label, embed.get("title"))
+        except Exception:
+            logger.exception("%s: 通知送信に失敗しました。残りをqueueに戻します", channel_label)
+            return sent, dropped, index
+    return sent, dropped, None
+
+
 def _drain_and_notify(
     queue: list[dict], new_embeds: list[dict], webhook_url: str, channel_label: str
 ) -> list[dict]:
@@ -96,17 +115,23 @@ def _drain_and_notify(
 
     sent = 0
     dropped = 0
-    for index, embed in enumerate(send_now):
+    chunks = notifier.chunk_embeds(send_now)
+    for index, chunk in enumerate(chunks):
         try:
-            notifier.send_embed(webhook_url, embed)
-            sent += 1
+            notifier.send_embeds(webhook_url, chunk)
+            sent += len(chunk)
         except notifier.PermanentNotifyError:
-            # 再送しても通らない1件でqueueの先頭を詰まらせない。破棄して次へ進む
-            dropped += 1
-            logger.exception("%s: 送信できない通知を破棄しました: %r", channel_label, embed.get("title"))
+            # まとめ送りが400で弾かれたら、原因の1件だけを破棄できるよう1件ずつ送り直す
+            logger.warning("%s: まとめ送信が拒否されたため1件ずつ送り直します", channel_label)
+            ok, bad, failed_at = _send_individually(chunk, webhook_url, channel_label)
+            sent += ok
+            dropped += bad
+            if failed_at is not None:
+                carry_over = chunk[failed_at:] + [e for c in chunks[index + 1 :] for e in c] + carry_over
+                break
         except Exception:
             logger.exception("%s: 通知送信に失敗しました。残りをqueueに戻します", channel_label)
-            carry_over = send_now[index:] + carry_over
+            carry_over = [e for c in chunks[index:] for e in c] + carry_over
             break
 
     if len(to_send) > config.MAX_NOTIFY_PER_RUN and sent + dropped == len(send_now):
