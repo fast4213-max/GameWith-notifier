@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "lp.gamewith.jp/wutheringwaves/vtuber_vol1",
+    "lp.gamewith.jp/aniimo/vtuber_vol1-1",
     "gamedb/14144/articles/63703",
     "gamedb/2209/articles/63702",
     "gamedb/6848/articles/63701",
@@ -75,8 +77,7 @@
     "gamedb/10783/articles/63500",
     "pc/article/show/4338",
     "gamedb/13883/articles/63495",
-    "gamedb/16721/articles/63494",
-    "lp.gamewith.jp/wutheringwaves/vtuber_vol1"
+    "gamedb/16721/articles/63494"
   ],
   "last_parse_error": null,
   "queue": []
