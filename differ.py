@@ -66,7 +66,7 @@ def _parse_published(value: str | None) -> datetime | None:
 
 
 def find_republished(
-    items: list, new_items: list, published_at: dict[str, str]
+    items: list, new_items: list, published_at: dict[str, str], keep_ids: list[str] | None = None
 ) -> tuple[list, dict[str, str]]:
     """既知の記事のうち、公開日時が前回より新しくなった（再掲載された）ものを返す。
 
@@ -75,7 +75,9 @@ def find_republished(
     IDは変わらないため、ID集合の差分だけでは「既知」と判定されて通知が漏れる。
 
     戻り値: (再掲載された記事, 更新後のpublished_atマップ)
-    マップは今回掲載中の記事のみを保持する（一覧から外れた記事の日時は不要）。
+    マップは今回掲載中の記事に加え、keep_ids（known_ids）に残っている記事の日時も保持する。
+    再掲載される記事は一覧から外れて数日たってから戻ってくることが多いため
+    （例: 9/23公開→一覧から消える→9/28に再掲載）、掲載中の分だけでは検知できない。
     日時の記録がない記事（導入直後の移行時など）は記録のみで通知しない。
     """
     new_ids = {item.id for item in new_items}
@@ -91,6 +93,9 @@ def find_republished(
         current = _parse_published(item.published_at)
         if previous is not None and current is not None and current > previous:
             republished.append(item)
+    for item_id in keep_ids or []:
+        if item_id not in updated and item_id in published_at:
+            updated[item_id] = published_at[item_id]
     return republished, updated
 
 

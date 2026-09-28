@@ -180,7 +180,9 @@ def run_news() -> None:
     state["last_parse_error"] = None
     new_items, updated_ids = differ.diff_simple_list(items, known_ids, previous_known)
     updated_ids = differ.drop_legacy_news_ids(updated_ids, {item.id for item in items})
-    republished, published_at = differ.find_republished(items, new_items, state.get("published_at", {}))
+    republished, published_at = differ.find_republished(
+        items, new_items, state.get("published_at", {}), updated_ids
+    )
     to_notify = {id(item) for item in new_items + republished}
     # 一覧は新しい順のため、古い順に通知した方がDiscord上でも時系列が自然になる
     new_embeds = [notifier.build_news_embed(item) for item in reversed(items) if id(item) in to_notify]

@@ -34,7 +34,13 @@ def main() -> None:
     news_items = scraper.scrape_news(scraper.fetch_html(config.NEWS_URL))
     state_manager.save_json(
         os.path.join(config.STATE_DIR, "news.json"),
-        {"known_ids": _dedupe(i.id for i in news_items), "queue": [], "consecutive_errors": 0},
+        {
+            "known_ids": _dedupe(i.id for i in news_items),
+            # 再掲載（公開日時の更新）を検知するための比較元
+            "published_at": {i.id: i.published_at for i in news_items},
+            "queue": [],
+            "consecutive_errors": 0,
+        },
     )
     logger.info("news.json: %d件を既読化", len(news_items))
 

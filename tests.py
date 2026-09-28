@@ -139,6 +139,30 @@ class TestRepublishedNews(unittest.TestCase):
         republished, _ = differ.find_republished(items, [], {"pc/article/show/4338": "2026-09-22T12:00+09:00"})
         self.assertEqual(republished, [])
 
+    def test_republished_after_dropping_off_the_list(self):
+        """一覧から外れて数日後に再掲載された記事も検知すること（ソリティア世界旅行の事例）。"""
+        first = self._items("2026-09-22T09:00+09:00")
+        _, known = differ.diff_simple_list(first, set())
+        _, published = differ.find_republished(first, first, {}, known)
+
+        # pc記事が一覧から消えた回
+        later = [i for i in first if i.id != "pc/article/show/4338"]
+        _, known = differ.diff_simple_list(later, set(known), known)
+        _, published = differ.find_republished(later, [], published, known)
+        self.assertEqual(published["pc/article/show/4338"], "2026-09-22T09:00+09:00")
+
+        # 新しい日時で戻ってきた回
+        back = self._items("2026-09-27T14:00+09:00")
+        new_items, known = differ.diff_simple_list(back, set(known), known)
+        republished, _ = differ.find_republished(back, new_items, published, known)
+        self.assertEqual(new_items, [])
+        self.assertEqual([i.id for i in republished], ["pc/article/show/4338"])
+
+    def test_published_at_is_pruned_with_known_ids(self):
+        items = self._items("2026-09-22T09:00+09:00")
+        _, updated = differ.find_republished(items, [], {"gone": "2026-09-01T00:00+09:00"}, ["x"])
+        self.assertNotIn("gone", updated)
+
     def test_run_news_notifies_new_and_republished_in_page_order(self):
         items = self._items("2026-09-22T11:00+09:00")  # pc記事が11:00で再掲載され先頭側に来た想定
         items.reverse()
