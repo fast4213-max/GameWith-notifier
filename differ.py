@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from date_utils import ParsedReleaseDate, parse_release_date, today_jst
@@ -54,6 +54,44 @@ def diff_simple_list(
     older = [i for i in (previous_known or sorted(known_ids)) if i not in current_set]
     updated_known = (current_ids + older)[:KNOWN_IDS_LIMIT]
     return new_items, updated_known
+
+
+def _parse_published(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def find_republished(
+    items: list, new_items: list, published_at: dict[str, str]
+) -> tuple[list, dict[str, str]]:
+    """既知の記事のうち、公開日時が前回より新しくなった（再掲載された）ものを返す。
+
+    GameWithは過去記事を内容更新して日時だけ新しくし、一覧の上位に再掲載することがある
+    （例: 9/25公開の「事前登録者数◯万人達成」が9/28 14:00付けで再掲載）。
+    IDは変わらないため、ID集合の差分だけでは「既知」と判定されて通知が漏れる。
+
+    戻り値: (再掲載された記事, 更新後のpublished_atマップ)
+    マップは今回掲載中の記事のみを保持する（一覧から外れた記事の日時は不要）。
+    日時の記録がない記事（導入直後の移行時など）は記録のみで通知しない。
+    """
+    new_ids = {item.id for item in new_items}
+    republished: list = []
+    updated: dict[str, str] = {}
+    for item in items:
+        if item.id in updated:
+            continue
+        updated[item.id] = item.published_at
+        if item.id in new_ids:
+            continue
+        previous = _parse_published(published_at.get(item.id))
+        current = _parse_published(item.published_at)
+        if previous is not None and current is not None and current > previous:
+            republished.append(item)
+    return republished, updated
 
 
 def drop_legacy_news_ids(known_ids: list[str], current_ids: set[str]) -> list[str]:

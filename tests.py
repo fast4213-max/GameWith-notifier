@@ -113,6 +113,61 @@ class TestNewsId(unittest.TestCase):
         self.assertIn("special", differ.drop_legacy_news_ids(known, {i.id for i in items}))
 
 
+class TestRepublishedNews(unittest.TestCase):
+    """過去記事が新しい日時で再掲載された場合も通知すること（ID差分だけでは漏れる）。"""
+
+    def _items(self, dup_time: str):
+        html = TestNewsId.HTML.replace("2026-09-22T09:00+09:00", dup_time)
+        return scraper.scrape_news(html)
+
+    def test_republished_article_is_detected(self):
+        items = self._items("2026-09-22T11:00+09:00")
+        previous = {"gamedb/1/articles/4338": "2026-09-22T10:00+09:00", "pc/article/show/4338": "2026-09-19T09:00+09:00"}
+        republished, updated = differ.find_republished(items, [], previous)
+        self.assertEqual([i.id for i in republished], ["pc/article/show/4338"])
+        self.assertEqual(updated["pc/article/show/4338"], "2026-09-22T11:00+09:00")
+
+    def test_unchanged_or_unrecorded_is_not_notified(self):
+        items = self._items("2026-09-22T09:00+09:00")
+        previous = {"gamedb/1/articles/4338": "2026-09-22T10:00+09:00"}
+        republished, updated = differ.find_republished(items, [], previous)
+        self.assertEqual(republished, [])  # 日時未記録（移行時）は記録のみ
+        self.assertEqual(set(updated), {"gamedb/1/articles/4338", "pc/article/show/4338"})
+
+    def test_older_timestamp_is_not_notified(self):
+        items = self._items("2026-09-22T09:00+09:00")
+        republished, _ = differ.find_republished(items, [], {"pc/article/show/4338": "2026-09-22T12:00+09:00"})
+        self.assertEqual(republished, [])
+
+    def test_run_news_notifies_new_and_republished_in_page_order(self):
+        items = self._items("2026-09-22T11:00+09:00")  # pc記事が11:00で再掲載され先頭側に来た想定
+        items.reverse()
+        state = {
+            "known_ids": ["pc/article/show/4338"],
+            "published_at": {"pc/article/show/4338": "2026-09-19T09:00+09:00"},
+            "queue": [],
+        }
+        saved = {}
+        with mock.patch.object(main_module.state_manager, "load_json", return_value=state), \
+                mock.patch.object(main_module.state_manager, "save_json", side_effect=lambda p, s: saved.update(s)), \
+                mock.patch.object(scraper, "fetch_html", return_value=""), \
+                mock.patch.object(scraper, "scrape_news", return_value=items), \
+                mock.patch.object(notifier, "send_embeds") as send:
+            main_module.run_news()
+        titles = [e["title"] for e in send.call_args[0][1]]
+        self.assertEqual(titles, ["gamedb記事", "pc記事"])  # 古い順
+        self.assertEqual(saved["published_at"]["pc/article/show/4338"], "2026-09-22T11:00+09:00")
+
+        send.reset_mock()
+        with mock.patch.object(main_module.state_manager, "load_json", return_value=dict(saved)), \
+                mock.patch.object(main_module.state_manager, "save_json"), \
+                mock.patch.object(scraper, "fetch_html", return_value=""), \
+                mock.patch.object(scraper, "scrape_news", return_value=items), \
+                mock.patch.object(notifier, "send_embeds") as send:
+            main_module.run_news()
+        send.assert_not_called()  # 2回目は再通知しない
+
+
 class TestDiffSimpleList(unittest.TestCase):
     def test_known_ids_are_capped_and_recency_ordered(self):
         old = [f"old{i}" for i in range(differ.KNOWN_IDS_LIMIT + 50)]
