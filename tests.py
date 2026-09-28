@@ -168,6 +168,29 @@ class TestRepublishedNews(unittest.TestCase):
         send.assert_not_called()  # 2回目は再通知しない
 
 
+class TestScheduleChangeNews(unittest.TestCase):
+    def _embed(self, title: str) -> dict:
+        item = scraper.NewsItem(id="x", title=title, url="https://gamewith.jp/x", image_url=None, published_at="")
+        return notifier.build_news_embed(item)
+
+    def test_postponement_titles_are_marked(self):
+        for title in (
+            "『混血のカレコレ ミラーラッシュ』の配信時期が変更に",
+            "『〇〇』のリリースが延期に",
+            "『〇〇』配信日が変更",
+            "『〇〇』の発売日を見直し",
+        ):
+            embed = self._embed(title)
+            self.assertTrue(embed["title"].startswith("⏳ 配信日変更: "), title)
+            self.assertEqual(embed["color"], notifier.COLOR_NEWS_SCHEDULE_CHANGE)
+
+    def test_other_titles_are_not_marked(self):
+        for title in ("『〇〇』の配信日が決定！", "『原神』6周年記念テーマソングが公開！", "『ダックサバイバー』事前登録者数30万人達成！"):
+            embed = self._embed(title)
+            self.assertEqual(embed["title"], title)
+            self.assertEqual(embed["color"], notifier.COLOR_NEWS)
+
+
 class TestDiffSimpleList(unittest.TestCase):
     def test_known_ids_are_capped_and_recency_ordered(self):
         old = [f"old{i}" for i in range(differ.KNOWN_IDS_LIMIT + 50)]

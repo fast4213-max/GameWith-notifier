@@ -1,6 +1,7 @@
 """Discord Webhookへの通知送信。タイトルにリンクを埋め込み、本文にURLは出さない。"""
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -11,6 +12,7 @@ SEND_INTERVAL_SECONDS = 1.2  # 連続POST時の簡易レート制限対策
 MAX_429_RETRIES = 3
 
 COLOR_NEWS = 0x2ECC71
+COLOR_NEWS_SCHEDULE_CHANGE = 0xE67E22
 COLOR_RELEASE_NEW = 0xF39C12
 COLOR_RELEASE_UPDATED = 0x9B59B6
 COLOR_RELEASE_POSTPONED = 0x95A5A6
@@ -23,6 +25,13 @@ DESCRIPTION_MAX = 4096
 FIELD_VALUE_MAX = 1024
 EMBEDS_PER_MESSAGE = 10  # 1メッセージに載せられるembed数の上限
 EMBEDS_TOTAL_CHARS_MAX = 6000  # 1メッセージ内の全embedの合計文字数上限
+
+
+# 延期・配信時期変更のニュースを目立たせるためのタイトル判定。
+# 「配信日決定」のような前向きな告知は対象外にするため、変更・見直し系の語に限定する
+SCHEDULE_CHANGE_PATTERN = re.compile(
+    r"延期|(配信|発売|リリース|サービス開始)(時期|日|日程|予定日?)(が|を)?(変更|見直|再調整)"
+)
 
 
 class PermanentNotifyError(Exception):
@@ -119,8 +128,19 @@ def send_embed(webhook_url: str, embed: dict[str, Any]) -> None:
     send_embeds(webhook_url, [embed])
 
 
+def is_schedule_change_news(title: str) -> bool:
+    return bool(SCHEDULE_CHANGE_PATTERN.search(title))
+
+
 def build_news_embed(item) -> dict:
-    embed: dict[str, Any] = {"title": item.title, "url": item.url, "color": COLOR_NEWS}
+    if is_schedule_change_news(item.title):
+        embed: dict[str, Any] = {
+            "title": f"⏳ 配信日変更: {item.title}",
+            "url": item.url,
+            "color": COLOR_NEWS_SCHEDULE_CHANGE,
+        }
+    else:
+        embed = {"title": item.title, "url": item.url, "color": COLOR_NEWS}
     if item.image_url:
         embed["image"] = {"url": item.image_url}
     return embed
