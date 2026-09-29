@@ -153,6 +153,15 @@
       "precision": "day",
       "title": "マビノギモバイル",
       "url": "https://gamewith.jp/gamedb/2165"
+    },
+    "8636": {
+      "date_text": "10月29日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/b4c41e1ae70aa278d28e2cb5c4e99a69.jpg",
+      "last_seen": "2026-09-29",
+      "notified": true,
+      "precision": "day",
+      "title": "モンスターハンターアウトランダーズ",
+      "url": "https://gamewith.jp/gamedb/8636"
     }
   },
   "last_parse_error": null,
