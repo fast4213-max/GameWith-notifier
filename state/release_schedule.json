@@ -56,7 +56,7 @@
       "url": "https://gamewith.jp/gamedb/17667"
     },
     "17889": {
-      "date_text": "26年9月",
+      "date_text": "26年10月",
       "image_url": "https://img.gamewith.jp/gamedb/games/icons/dddbbdcb2303939c68525561a2452ed5.jpg",
       "last_seen": "2026-09-29",
       "notified": true,
@@ -144,6 +144,15 @@
       "precision": "day",
       "title": "ウィンドランナーGo!",
       "url": "https://gamewith.jp/gamedb/18549"
+    },
+    "18620": {
+      "date_text": "10月30日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/d7a7f60afb85abdd166ed87d5bde4089.jpg",
+      "last_seen": "2026-09-29",
+      "notified": true,
+      "precision": "day",
+      "title": "AXE DESCENT",
+      "url": "https://gamewith.jp/gamedb/18620"
     },
     "2165": {
       "date_text": "10月7日",
