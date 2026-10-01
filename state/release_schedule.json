@@ -1,6 +1,15 @@
 {
   "consecutive_errors": 0,
   "games": {
+    "10627": {
+      "date_text": "10月14日",
+      "image_url": "https://img.gamewith.jp/gamedb/games/icons/236f017382bd48a00c61ad19e8a85a4b.jpg",
+      "last_seen": "2026-10-01",
+      "notified": true,
+      "precision": "day",
+      "title": "千年の旅ELF",
+      "url": "https://gamewith.jp/gamedb/10627"
+    },
     "12724": {
       "date_text": "9月24日",
       "image_url": "https://img.gamewith.jp/gamedb/games/icons/a392d892601c5022a22b43fce0ebc6ac.jpg",
