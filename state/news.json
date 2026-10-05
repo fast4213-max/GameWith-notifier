@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/18722/articles/64030",
+    "gamedb/18716/articles/64020",
     "lp.gamewith.jp/aniimo/vtuber_vol1-1",
     "gamedb/2535/articles/64018",
     "gamedb/6668/articles/64015",
@@ -240,6 +242,8 @@
     "gamedb/18700/articles/63994": "2026-10-03T20:00+09:00",
     "gamedb/18710": "2026-10-05T13:30+09:00",
     "gamedb/18712": "2026-10-05T15:30+09:00",
+    "gamedb/18716/articles/64020": "2026-10-05T18:20+09:00",
+    "gamedb/18722/articles/64030": "2026-10-05T19:00+09:00",
     "gamedb/1990/articles/64002": "2026-10-05T11:20+09:00",
     "gamedb/2165/articles/19366": "2026-10-02T14:00+09:00",
     "gamedb/2165/articles/63567": "2026-09-28T00:00+09:00",
