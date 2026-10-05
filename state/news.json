@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "lp.gamewith.jp/aniimo/vtuber_vol1-1",
+    "gamedb/2535/articles/64018",
     "gamedb/6668/articles/64015",
     "gamedb/14382/articles/64014",
     "gamedb/4926/articles/64013",
@@ -101,7 +103,6 @@
     "gamedb/15524/articles/63718",
     "gamedb/13615/articles/63708",
     "gamedb/11000/articles/63711",
-    "lp.gamewith.jp/aniimo/vtuber_vol1-1",
     "gamedb/14144/articles/63703",
     "gamedb/2209/articles/63702",
     "gamedb/6848/articles/63701",
@@ -243,6 +244,7 @@
     "gamedb/2165/articles/19366": "2026-10-02T14:00+09:00",
     "gamedb/2165/articles/63567": "2026-09-28T00:00+09:00",
     "gamedb/22/articles/63893": "2026-09-30T19:50+09:00",
+    "gamedb/2535/articles/64018": "2026-10-05T17:10+09:00",
     "gamedb/2797/articles/63816": "2026-09-29T19:40+09:00",
     "gamedb/339/articles/63757": "2026-09-28T14:00+09:00",
     "gamedb/4368/articles/63873": "2026-09-30T18:00+09:00",
@@ -273,6 +275,7 @@
     "gamedb/8636/articles/63786": "2026-09-29T11:39+09:00",
     "gamedb/916/articles/63929": "2026-10-01T16:00+09:00",
     "gamedb/article/show/579506": "2026-10-02T16:46+09:00",
+    "lp.gamewith.jp/aniimo/vtuber_vol1-1": "2026-10-05T18:00+09:00",
     "lp.gamewith.jp/wutheringwaves/vtuber_vol1": "2026-09-30T17:00+09:00"
   },
   "queue": []
