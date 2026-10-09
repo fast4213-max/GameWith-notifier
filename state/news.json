@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/article/show/19057",
+    "gamedb/article/show/19056",
     "gamedb/article/show/254360",
     "gamedb/18426/articles/64202",
     "lp.gamewith.jp/wutheringwaves/vtuber_vol1",
@@ -186,7 +188,6 @@
     "gamedb/15536/articles/63663",
     "gamedb/4929/articles/63656",
     "gamedb/15560/articles/51992",
-    "gamedb/article/show/19057",
     "gamedb/18549/articles/63646",
     "gamedb/17087",
     "gamedb/18540/articles/63620",
@@ -398,6 +399,8 @@
     "gamedb/8636/articles/63786": "2026-09-29T11:39+09:00",
     "gamedb/916/articles/63929": "2026-10-01T16:00+09:00",
     "gamedb/article/show/19042": "2026-10-09T17:19+09:00",
+    "gamedb/article/show/19056": "2026-10-09T18:11+09:00",
+    "gamedb/article/show/19057": "2026-10-09T18:16+09:00",
     "gamedb/article/show/19058": "2026-10-09T17:42+09:00",
     "gamedb/article/show/19059": "2026-10-09T17:48+09:00",
     "gamedb/article/show/254360": "2026-10-09T18:03+09:00",
