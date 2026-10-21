@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/16987/articles/57878",
+    "gamedb/18912",
     "gamedb/5387/articles/64723",
     "gamedb/13026/articles/64720",
     "gamedb/12334/articles/64703",
@@ -207,7 +209,6 @@
     "gamedb/13286/articles/64043",
     "gamedb/18735",
     "gamedb/14707/articles/64027",
-    "gamedb/16987/articles/57878",
     "gamedb/11026/articles/64034",
     "gamedb/18722/articles/64030",
     "lp.gamewith.jp/aniimo/vtuber_vol1-1",
@@ -470,7 +471,7 @@
     "gamedb/1685/articles/63890": "2026-09-30T19:00+09:00",
     "gamedb/1689/articles/63875": "2026-09-30T14:40+09:00",
     "gamedb/16913/articles/57652": "2026-10-02T17:00+09:00",
-    "gamedb/16987/articles/57878": "2026-10-06T10:30+09:00",
+    "gamedb/16987/articles/57878": "2026-10-21T19:40+09:00",
     "gamedb/17053/articles/58051": "2026-10-06T14:10+09:00",
     "gamedb/17224/articles/64587": "2026-10-19T14:50+09:00",
     "gamedb/17257/articles/58969": "2026-10-09T12:10+09:00",
@@ -561,6 +562,7 @@
     "gamedb/18896": "2026-10-20T19:50+09:00",
     "gamedb/18898": "2026-10-20T18:59+09:00",
     "gamedb/18909": "2026-10-21T14:40+09:00",
+    "gamedb/18912": "2026-10-21T19:20+09:00",
     "gamedb/1990/articles/64002": "2026-10-05T11:20+09:00",
     "gamedb/2022/articles/64631": "2026-10-20T13:30+09:00",
     "gamedb/2165/articles/19366": "2026-10-07T12:40+09:00",
