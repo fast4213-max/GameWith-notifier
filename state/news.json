@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/5387/articles/65538",
+    "gamedb/17053/articles/58051",
     "gamedb/19089",
     "gamedb/19084",
     "gamedb/4417/articles/65530",
@@ -422,7 +424,6 @@
     "gamedb/18550/articles/64048",
     "gamedb/18737",
     "gamedb/article/show/580586",
-    "gamedb/17053/articles/58051",
     "gamedb/13286/articles/64043",
     "gamedb/18735",
     "gamedb/14707/articles/64027",
@@ -756,7 +757,7 @@
     "gamedb/1695/articles/64798": "2026-10-22T19:50+09:00",
     "gamedb/1695/articles/65400": "2026-11-05T19:00+09:00",
     "gamedb/16987/articles/57878": "2026-11-04T15:30+09:00",
-    "gamedb/17053/articles/58051": "2026-10-06T14:10+09:00",
+    "gamedb/17053/articles/58051": "2026-11-09T20:20+09:00",
     "gamedb/17224/articles/64587": "2026-10-19T14:50+09:00",
     "gamedb/17224/articles/65367": "2026-11-05T14:30+09:00",
     "gamedb/17257/articles/58969": "2026-10-09T12:10+09:00",
@@ -982,6 +983,7 @@
     "gamedb/5387/articles/65198": "2026-10-31T14:34+09:00",
     "gamedb/5387/articles/65457": "2026-11-07T11:30+09:00",
     "gamedb/5387/articles/65484": "2026-11-09T13:10+09:00",
+    "gamedb/5387/articles/65538": "2026-11-09T21:00+09:00",
     "gamedb/5514/articles/64463": "2026-10-16T12:10+09:00",
     "gamedb/5556/articles/64346": "2026-10-14T13:50+09:00",
     "gamedb/5556/articles/64964": "2026-10-27T19:20+09:00",
