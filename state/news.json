@@ -1,6 +1,9 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3",
+    "gamedb/12334/articles/65643",
+    "gamedb/17053",
     "gamedb/811/articles/65623",
     "gamedb/7533/articles/65638",
     "gamedb/5387/articles/65641",
@@ -172,7 +175,6 @@
     "gamedb/6953/articles/65101",
     "gamedb/1676/articles/65100",
     "gamedb/18047/articles/61864",
-    "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3",
     "gamedb/5600/articles/65081",
     "gamedb/8388/articles/65082",
     "gamedb/10700/articles/65091",
@@ -675,6 +677,7 @@
     "gamedb/12334/articles/63891": "2026-09-30T19:20+09:00",
     "gamedb/12334/articles/64373": "2026-10-14T17:40+09:00",
     "gamedb/12334/articles/64703": "2026-10-21T17:00+09:00",
+    "gamedb/12334/articles/65643": "2026-11-11T17:50+09:00",
     "gamedb/1239/articles/64419": "2026-10-15T14:40+09:00",
     "gamedb/12512/articles/63817": "2026-09-29T20:00+09:00",
     "gamedb/12512/articles/64052": "2026-10-06T17:30+09:00",
@@ -798,6 +801,7 @@
     "gamedb/1695/articles/64798": "2026-10-22T19:50+09:00",
     "gamedb/1695/articles/65400": "2026-11-05T19:00+09:00",
     "gamedb/16987/articles/57878": "2026-11-04T15:30+09:00",
+    "gamedb/17053": "2026-11-11T17:40+09:00",
     "gamedb/17053/articles/58051": "2026-11-09T20:20+09:00",
     "gamedb/17224/articles/64587": "2026-10-19T14:50+09:00",
     "gamedb/17224/articles/65367": "2026-11-05T14:30+09:00",
@@ -1165,7 +1169,7 @@
     "gamedb/article/show/580586": "2026-10-07T17:22+09:00",
     "gamedb/article/show/582684": "2026-10-14T15:16+09:00",
     "lp.gamewith.jp/aniimo/vtuber_vol1-1": "2026-10-05T18:00+09:00",
-    "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3": "2026-10-29T18:00+09:00",
+    "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3": "2026-11-11T18:00+09:00",
     "lp.gamewith.jp/wutheringwaves/vtuber_vol1": "2026-10-16T18:00+09:00"
   },
   "queue": []
