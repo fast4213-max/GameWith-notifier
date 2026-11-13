@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+
+import requests
 from unittest import mock
 
 import config
@@ -157,6 +159,16 @@ class TestRepublishedNews(unittest.TestCase):
         republished, _ = differ.find_republished(back, new_items, published, known)
         self.assertEqual(new_items, [])
         self.assertEqual([i.id for i in republished], ["pc/article/show/4338"])
+
+    def test_timestamp_without_timezone_is_treated_as_jst(self):
+        """サイトの日時表記から「+09:00」が消えても、比較でTypeErrorにならないこと。"""
+        items = self._items("2026-09-22T09:00+09:00")
+        previous = {i.id: i.published_at for i in items}  # 記録済みは「+09:00」付き
+        for item in items:
+            item.published_at = item.published_at.replace("+09:00", "")
+        items[1].published_at = "2026-09-22T11:00"
+        republished, _ = differ.find_republished(items, [], previous)
+        self.assertEqual([i.id for i in republished], [items[1].id])
 
     def test_published_at_is_pruned_with_known_ids(self):
         items = self._items("2026-09-22T09:00+09:00")
@@ -370,6 +382,31 @@ class TestDrainAndNotify(unittest.TestCase):
         self.assertEqual([e for c in send.call_args_list for e in c.args[1]], embeds[:30])
         self.assertEqual(carry, embeds[30:])
 
+    def test_webhook_config_error_keeps_queue_and_fails_the_run(self):
+        """Webhookが削除・無効化されても通知を捨てず、Actionsを失敗させて気付けるようにする。"""
+        embeds = [{"title": str(i)} for i in range(5)]
+        main_module._webhook_config_errors.clear()
+        with mock.patch.object(
+            notifier, "send_embeds", side_effect=notifier.WebhookConfigError("HTTP 404")
+        ):
+            carry = main_module._drain_and_notify([], embeds, self.URL, "テスト")
+        self.assertEqual(carry, embeds)
+        self.assertEqual(main_module._webhook_config_errors, ["テスト"])
+
+    def test_webhook_config_error_while_resending_individually_keeps_rest(self):
+        bad, a, b = {"title": "bad"}, {"title": "a"}, {"title": "b"}
+
+        def send_one(_url, embed):
+            if embed["title"] == "bad":
+                raise notifier.PermanentNotifyError("HTTP 400")
+            raise notifier.WebhookConfigError("HTTP 404")
+
+        with mock.patch.object(
+            notifier, "send_embeds", side_effect=notifier.PermanentNotifyError("HTTP 400")
+        ), mock.patch.object(notifier, "send_embed", side_effect=send_one):
+            carry = main_module._drain_and_notify([], [bad, a, b], self.URL, "テスト")
+        self.assertEqual(carry, [a, b])  # 内容起因の1件だけ破棄し、残りは保持
+
     def test_queue_is_capped(self):
         embeds = [{"title": str(i)} for i in range(config.MAX_QUEUE_SIZE + 60)]
         with mock.patch.object(notifier, "send_embeds", side_effect=RuntimeError("down")):
@@ -385,8 +422,54 @@ class TestNotifier(unittest.TestCase):
         self.assertEqual(len(embed["fields"][0]["value"]), notifier.FIELD_VALUE_MAX)
 
     def test_empty_webhook_raises(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(notifier.WebhookConfigError):
             notifier.send_embed("", {"title": "x"})
+
+    def test_deleted_or_invalid_webhook_is_config_error_not_permanent(self):
+        """401/403/404はWebhookの設定ミス。内容起因の400と違い、破棄してはいけない。"""
+        for status in (401, 403, 404):
+            resp = mock.Mock(status_code=status, text='{"message": "Unknown Webhook"}')
+            with mock.patch.object(notifier.requests, "post", return_value=resp):
+                with self.assertRaises(notifier.WebhookConfigError):
+                    notifier.send_embed("https://example.invalid", {"title": "x"})
+
+    def test_server_error_is_transient(self):
+        resp = mock.Mock(status_code=502, text="bad gateway")
+        with mock.patch.object(notifier.requests, "post", return_value=resp):
+            with self.assertRaises(notifier.TransientNotifyError):
+                notifier.send_embed("https://example.invalid", {"title": "x"})
+
+
+class TestWebhookTokenRedaction(unittest.TestCase):
+    """公開リポジトリのActionsログにWebhookトークンを出さないこと。"""
+
+    URL = "https://discord.com/api/webhooks/123456789/SECRET-token_abc.def"
+
+    def test_redact(self):
+        text = "Max retries exceeded with url: /api/webhooks/123456789/SECRET-token_abc.def (Caused by ...)"
+        redacted = notifier.redact(text)
+        self.assertNotIn("SECRET", redacted)
+        self.assertIn("/api/webhooks/123456789/***", redacted)
+
+    def test_connection_error_does_not_leak_token(self):
+        err = requests.ConnectionError(
+            "HTTPSConnectionPool(host='discord.com', port=443): "
+            "Max retries exceeded with url: /api/webhooks/123456789/SECRET-token_abc.def"
+        )
+        with mock.patch.object(notifier.requests, "post", side_effect=err):
+            with self.assertRaises(notifier.TransientNotifyError) as ctx:
+                notifier.send_embed(self.URL, {"title": "x"})
+        self.assertNotIn("SECRET", str(ctx.exception))
+        # 元の例外が連鎖していると、トレースバックにトークン入りのメッセージが出てしまう
+        self.assertIsNone(ctx.exception.__cause__)
+        self.assertTrue(ctx.exception.__suppress_context__)
+
+    def test_http_error_does_not_leak_token(self):
+        resp = mock.Mock(status_code=500, text="error at /api/webhooks/123456789/SECRET-token_abc.def")
+        with mock.patch.object(notifier.requests, "post", return_value=resp):
+            with self.assertRaises(notifier.TransientNotifyError) as ctx:
+                notifier.send_embed(self.URL, {"title": "x"})
+        self.assertNotIn("SECRET", str(ctx.exception))
 
     def test_client_error_is_permanent(self):
         resp = mock.Mock(status_code=400, text="bad request")
@@ -443,6 +526,62 @@ class TestParseErrorSuppression(unittest.TestCase):
             main_module._handle_parse_error(state, "テスト", scraper.ParseError("A"))
             main_module._handle_parse_error(state, "テスト", scraper.ParseError("B"))
         self.assertEqual(notify.call_count, 2)
+
+
+class TestUnexpectedErrorSuppression(unittest.TestCase):
+    """想定外エラーが続く間、毎時間同じ通知を飛ばさないこと。"""
+
+    def _run_main(self, store: dict, news_error: Exception | None):
+        def load(path, default):
+            return store.get(path, default)
+
+        def save(path, data):
+            store[path] = data
+
+        with mock.patch.object(main_module.state_manager, "load_json", side_effect=load), \
+                mock.patch.object(main_module.state_manager, "save_json", side_effect=save), \
+                mock.patch.object(main_module, "run_news", side_effect=news_error), \
+                mock.patch.object(main_module, "run_new_titles"), \
+                mock.patch.object(main_module, "run_release_schedule"), \
+                mock.patch.object(main_module, "_notify_error_to_news") as notify:
+            code = main_module.main()
+        return code, notify.call_count
+
+    def test_same_error_notifies_once_until_recovered(self):
+        store: dict = {}
+        self.assertEqual(self._run_main(store, KeyError("x")), (1, 1))
+        self.assertEqual(self._run_main(store, KeyError("x")), (1, 0))  # 継続中は抑制（Actionsは失敗のまま）
+        self.assertEqual(self._run_main(store, None), (0, 0))  # 復旧
+        self.assertEqual(self._run_main(store, KeyError("x")), (1, 1))  # 再発したら再通知
+
+    def test_different_error_notifies_again(self):
+        store: dict = {}
+        self._run_main(store, KeyError("x"))
+        self.assertEqual(self._run_main(store, ValueError("y")), (1, 1))
+
+    def test_webhook_config_error_makes_main_fail(self):
+        def broken_webhook():
+            main_module._record_webhook_config_error("最新ニュース", notifier.WebhookConfigError("HTTP 404"))
+
+        with mock.patch.object(main_module.state_manager, "load_json", return_value={}), \
+                mock.patch.object(main_module.state_manager, "save_json"), \
+                mock.patch.object(main_module, "run_news", side_effect=broken_webhook), \
+                mock.patch.object(main_module, "run_new_titles"), \
+                mock.patch.object(main_module, "run_release_schedule"):
+            self.assertEqual(main_module.main(), 1)
+
+
+class TestAppliFetchErrorAlert(unittest.TestCase):
+    def test_alert_is_sent_once_for_both_channels(self):
+        """/appliの取得失敗は「新作」「リリース予定」共通の原因なので、アラートは1通にまとめる。"""
+        n = config.CONSECUTIVE_FAILURE_ALERT_THRESHOLD
+        page = main_module._AppliPage()
+        with mock.patch.object(main_module, "_notify_error_to_news") as notify:
+            for label in ("新作", "リリース予定"):
+                state = {"consecutive_errors": n - 1}
+                main_module._handle_fetch_error(state, label, scraper.FetchError("timeout"), page)
+                self.assertEqual(state["consecutive_errors"], n)
+        self.assertEqual(notify.call_count, 1)
 
 
 class TestAppliPage(unittest.TestCase):

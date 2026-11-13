@@ -10,7 +10,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-from date_utils import ParsedReleaseDate, parse_release_date, today_jst
+from date_utils import JST, ParsedReleaseDate, parse_release_date, today_jst
 from scraper import GameListItem
 
 logger = logging.getLogger("gamewith-notifier.differ")
@@ -60,9 +60,12 @@ def _parse_published(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
+    # 記録済みの値は「+09:00」付き。サイト側の表記からタイムゾーンが消えると
+    # aware/naiveの比較でTypeErrorになりニュース処理が毎回止まるため、JSTとみなして揃える
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=JST)
 
 
 def find_republished(
