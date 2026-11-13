@@ -7,6 +7,9 @@
   - ページ構造エラー（想定した要素が見つからない）→ リトライしても直らないため、
     その場でニュースチャンネルへ通知する。ただし直っていない間は毎時間同じ通知が
     飛ぶことになるため、同一内容の再通知は復旧するまで抑制する。
+  - Webhook設定エラー（未設定・削除済み・トークン不正）→ 通知はqueueに残し、
+    終了コード1でActionsを失敗扱いにする（Discordに届かない以上、気付ける経路はこれしかない）。
+  - 想定外のエラー（バグ）→ ニュースチャンネルへ通知し終了コード1。同一内容は復旧まで再通知しない。
 """
 from __future__ import annotations
 
@@ -25,6 +28,18 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("gamewith-notifier")
 
 
+# 想定外エラーの通知済み内容（チャンネルごと）。直るまで毎時間同じ通知を飛ばさないために使う
+ALERTS_STATE_FILE = "alerts.json"
+
+# 今回の実行で起きたWebhook設定エラー（チャンネル名）。main()の終了コードに反映する
+_webhook_config_errors: list[str] = []
+
+
+def _record_webhook_config_error(channel_label: str, exc: Exception) -> None:
+    _webhook_config_errors.append(channel_label)
+    logger.error("%s: %s", channel_label, exc)
+
+
 class _AppliPage:
     """/appli は「新作」「リリース予定」の両方で使うため、1回の実行で1度だけ取得する。
 
@@ -35,6 +50,8 @@ class _AppliPage:
     def __init__(self) -> None:
         self._html: Optional[str] = None
         self._error: Optional[Exception] = None
+        # 取得失敗のアラートは「新作」「リリース予定」で同じ原因なので、1回の実行で1通だけ送る
+        self.fetch_error_alerted = False
 
     def html(self) -> str:
         if self._error is not None:
@@ -57,15 +74,25 @@ def _state_path(name: str) -> str:
 def _notify_error_to_news(embed: dict[str, Any]) -> None:
     try:
         notifier.send_embed(config.DISCORD_WEBHOOK_NEWS, embed)
+    except notifier.WebhookConfigError as exc:
+        _record_webhook_config_error("エラー通知（最新ニュース）", exc)
     except Exception:
         logger.exception("エラー通知の送信自体にも失敗しました")
 
 
-def _handle_fetch_error(state: dict[str, Any], channel_label: str, exc: Exception) -> None:
+def _handle_fetch_error(
+    state: dict[str, Any], channel_label: str, exc: Exception, page: Optional[_AppliPage] = None
+) -> None:
     state["consecutive_errors"] = state.get("consecutive_errors", 0) + 1
     logger.warning("%s: 取得失敗（リトライ枯渇、次回実行に任せます）: %s", channel_label, exc)
     n = state["consecutive_errors"]
     if n > 0 and n % config.CONSECUTIVE_FAILURE_ALERT_THRESHOLD == 0:
+        if page is not None:
+            # /appliは2チャンネル共通。同じ原因のアラートを2通送らない
+            if page.fetch_error_alerted:
+                return
+            page.fetch_error_alerted = True
+            channel_label = "新作・リリース予定（/appli）"
         _notify_error_to_news(
             notifier.build_error_embed(
                 channel_label, f"{n}回連続で取得に失敗しています（一時的な通信障害の可能性）: {exc}"
@@ -95,6 +122,9 @@ def _send_individually(
         try:
             notifier.send_embed(webhook_url, embed)
             sent += 1
+        except notifier.WebhookConfigError as exc:
+            _record_webhook_config_error(channel_label, exc)
+            return sent, dropped, index
         except notifier.PermanentNotifyError:
             # 再送しても通らない1件でqueueの先頭を詰まらせない。破棄して次へ進む
             dropped += 1
@@ -129,6 +159,11 @@ def _drain_and_notify(
             if failed_at is not None:
                 carry_over = chunk[failed_at:] + [e for c in chunks[index + 1 :] for e in c] + carry_over
                 break
+        except notifier.WebhookConfigError as exc:
+            # 設定を直せば送れるので破棄せずqueueに残す
+            _record_webhook_config_error(channel_label, exc)
+            carry_over = [e for c in chunks[index:] for e in c] + carry_over
+            break
         except Exception:
             logger.exception("%s: 通知送信に失敗しました。残りをqueueに戻します", channel_label)
             carry_over = [e for c in chunks[index:] for e in c] + carry_over
@@ -205,7 +240,7 @@ def run_new_titles(page: _AppliPage) -> None:
     try:
         items = scraper.scrape_new_titles(page.html())
     except scraper.FetchError as exc:
-        _handle_fetch_error(state, channel_label, exc)
+        _handle_fetch_error(state, channel_label, exc, page)
         state_manager.save_json(path, state)
         return
     except scraper.ParseError as exc:
@@ -233,7 +268,7 @@ def run_release_schedule(page: _AppliPage) -> None:
     try:
         items = scraper.scrape_release_schedule(page.html())
     except scraper.FetchError as exc:
-        _handle_fetch_error(state, channel_label, exc)
+        _handle_fetch_error(state, channel_label, exc, page)
         state_manager.save_json(path, state)
         return
     except scraper.ParseError as exc:
@@ -256,9 +291,30 @@ def run_release_schedule(page: _AppliPage) -> None:
     state_manager.save_json(path, state)
 
 
+def _handle_unexpected_error(alerts: dict[str, str], label: str, exc: Exception) -> None:
+    """想定外エラーを通知する。同じエラーが続く間は、復旧するまで再通知しない。"""
+    logger.exception("%sの処理中に想定外のエラーが発生しました", label)
+    message = notifier.redact(f"{type(exc).__name__}: {exc}")
+    if alerts.get(label) == message:
+        logger.info("%s: 同一の想定外エラーが継続中のため通知は抑制しました", label)
+        return
+    alerts[label] = message
+    _notify_error_to_news(
+        notifier.build_error_embed(label, f"想定外のエラーが発生しました。ログを確認してください: {message}")
+    )
+
+
 def main() -> int:
+    _webhook_config_errors.clear()
     page = _AppliPage()
     error_count = 0
+    alerts_path = _state_path(ALERTS_STATE_FILE)
+    try:
+        alerts: dict[str, str] = dict(state_manager.load_json(alerts_path, {}).get("unexpected_errors", {}))
+    except Exception:
+        logger.exception("%sを読み込めませんでした（空として扱います）", alerts_path)
+        alerts = {}
+
     for label, fn in (
         ("最新ニュース", run_news),
         ("新作", lambda: run_new_titles(page)),
@@ -266,15 +322,20 @@ def main() -> int:
     ):
         try:
             fn()
+            alerts.pop(label, None)  # 復旧したら、再発時に改めて通知する
         except Exception as exc:  # 想定外のバグ。握りつぶさず必ず可視化する
             error_count += 1
-            logger.exception("%sの処理中に想定外のエラーが発生しました", label)
-            _notify_error_to_news(
-                notifier.build_error_embed(label, f"想定外のエラーが発生しました。ログを確認してください: {exc}")
-            )
+            _handle_unexpected_error(alerts, label, exc)
 
-    logger.info("実行完了（想定外エラー%d件）", error_count)
-    return 1 if error_count else 0
+    state_manager.save_json(alerts_path, {"unexpected_errors": alerts})
+
+    if _webhook_config_errors:
+        logger.error(
+            "Webhook設定エラーがありました（%s）。通知はqueueに保持しています。GitHub Secretsを確認してください",
+            "、".join(dict.fromkeys(_webhook_config_errors)),
+        )
+    logger.info("実行完了（想定外エラー%d件、Webhook設定エラー%d件）", error_count, len(_webhook_config_errors))
+    return 1 if error_count or _webhook_config_errors else 0
 
 
 if __name__ == "__main__":

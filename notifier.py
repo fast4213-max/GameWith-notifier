@@ -38,6 +38,34 @@ class PermanentNotifyError(Exception):
     """再送しても必ず失敗する送信エラー（400等）。queueに戻さず破棄する。"""
 
 
+class WebhookConfigError(Exception):
+    """Webhook自体が使えない（未設定・削除済み・トークン不正）。
+
+    通知の内容ではなく設定の問題なので、破棄せずqueueに戻して設定の修正を待つ。
+    放置されないようActionsの実行を失敗扱いにするため、他の送信エラーと区別する。
+    """
+
+
+class TransientNotifyError(Exception):
+    """一時的な送信エラー（通信障害・5xx・429リトライ枯渇）。queueに戻して次回再送する。"""
+
+
+# Webhookが削除された／トークンが不正なときにDiscordが返すステータス
+WEBHOOK_CONFIG_ERROR_STATUSES = (401, 403, 404)
+
+_WEBHOOK_TOKEN_PATTERN = re.compile(r"(webhooks/\d+/)[A-Za-z0-9_.\-]+")
+
+
+def redact(text: str) -> str:
+    """Webhookのトークン部分を伏せる。
+
+    requestsの通信エラーのメッセージには `/api/webhooks/<ID>/<トークン>` がパスだけで入る。
+    GitHub ActionsはSecretsの値（URL全体）と完全一致した部分しかマスクしないため、
+    そのままログに出すと公開リポジトリの実行ログからトークンが読めてしまう。
+    """
+    return _WEBHOOK_TOKEN_PATTERN.sub(r"\1***", str(text))
+
+
 def _truncate(text: str, limit: int) -> str:
     text = str(text)
     return text if len(text) <= limit else text[: limit - 1] + "…"
@@ -100,27 +128,42 @@ def _wait_for_bucket(resp: requests.Response) -> None:
     time.sleep(wait)
 
 
+def _post(webhook_url: str, payload: dict[str, Any]) -> requests.Response:
+    try:
+        return requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
+    except requests.RequestException as exc:
+        # 元の例外はメッセージにトークンを含むため、連鎖させず（from None）伏せた内容だけ残す
+        raise TransientNotifyError(f"Discordへの送信で通信エラー: {redact(exc)}") from None
+
+
 def send_embeds(webhook_url: str, embeds: list[dict[str, Any]]) -> None:
     """embedをまとめて1メッセージで送る（最大10件）。"""
     if not webhook_url:
-        raise RuntimeError("Webhook URLが設定されていません（GitHub Secretsを確認してください）")
+        raise WebhookConfigError("Webhook URLが設定されていません（GitHub Secretsを確認してください）")
     if not 1 <= len(embeds) <= EMBEDS_PER_MESSAGE:
         raise ValueError(f"1メッセージのembed数は1〜{EMBEDS_PER_MESSAGE}件です: {len(embeds)}")
 
     payload = {"embeds": [_sanitize(e) for e in embeds]}
-    resp = requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
+    resp = _post(webhook_url, payload)
     for _ in range(MAX_429_RETRIES):
         if resp.status_code != 429:
             break
         time.sleep(_retry_after(resp) + 0.5)
-        resp = requests.post(webhook_url, json=payload, timeout=REQUEST_TIMEOUT)
+        resp = _post(webhook_url, payload)
 
-    # 400番台（429を除く）はリクエスト内容自体の問題なので、何度送り直しても通らない。
+    body = redact(str(resp.text)[:300])
+    # 401/403/404はWebhookの削除・トークン不正。内容を変えても通らないが、設定を直せば送れるので破棄しない
+    if resp.status_code in WEBHOOK_CONFIG_ERROR_STATUSES:
+        raise WebhookConfigError(
+            f"Webhookが無効です（HTTP {resp.status_code}、削除またはURL誤りの可能性。GitHub Secretsを確認してください）: {body}"
+        )
+    # それ以外の400番台（429を除く）はリクエスト内容自体の問題なので、何度送り直しても通らない。
     # queueに戻すとその通知が詰まって後続が永久に出せなくなるため、破棄扱いにする。
     if 400 <= resp.status_code < 500 and resp.status_code != 429:
-        raise PermanentNotifyError(f"Discordに拒否されました（HTTP {resp.status_code}）: {resp.text[:300]}")
-
-    resp.raise_for_status()
+        raise PermanentNotifyError(f"Discordに拒否されました（HTTP {resp.status_code}）: {body}")
+    # raise_for_status()はメッセージにURL全体を含むため使わない
+    if resp.status_code >= 400:
+        raise TransientNotifyError(f"Discordへの送信に失敗しました（HTTP {resp.status_code}）: {body}")
     _wait_for_bucket(resp)
 
 
