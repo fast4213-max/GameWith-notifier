@@ -1,6 +1,13 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/12556/articles/65894",
+    "gamedb/10871/articles/65959",
+    "gamedb/17745/articles/65952",
+    "pc/article/show/4449",
+    "gamedb/15536/articles/65960",
+    "gamedb/6253/articles/65946",
+    "gamedb/5600/articles/65945",
     "gamedb/404/articles/65955",
     "gamedb/13452/articles/65954",
     "gamedb/6215/articles/65951",
@@ -730,6 +737,7 @@
     "gamedb/10865/articles/64797": "2026-10-22T19:40+09:00",
     "gamedb/10871/articles/33110": "2026-11-17T19:20+09:00",
     "gamedb/10871/articles/65814": "2026-11-17T10:30+09:00",
+    "gamedb/10871/articles/65959": "2026-11-18T18:00+09:00",
     "gamedb/10952/articles/64566": "2026-10-20T01:00+09:00",
     "gamedb/10952/articles/64810": "2026-10-22T23:06+09:00",
     "gamedb/10952/articles/65914": "2026-11-17T23:35+09:00",
@@ -779,6 +787,7 @@
     "gamedb/12552/articles/65333": "2026-11-04T18:50+09:00",
     "gamedb/12556/articles/63842": "2026-09-30T12:00+09:00",
     "gamedb/12556/articles/64264": "2026-10-13T12:00+09:00",
+    "gamedb/12556/articles/65894": "2026-11-18T18:00+09:00",
     "gamedb/12559/articles/65296": "2026-11-04T13:00+09:00",
     "gamedb/1266/articles/64171": "2026-10-09T12:00+09:00",
     "gamedb/1266/articles/64758": "2026-10-22T14:40+09:00",
@@ -873,6 +882,7 @@
     "gamedb/15524/articles/65802": "2026-11-15T17:55+09:00",
     "gamedb/15536/articles/64592": "2026-10-19T23:50+09:00",
     "gamedb/15536/articles/65063": "2026-10-29T13:10+09:00",
+    "gamedb/15536/articles/65960": "2026-11-18T17:40+09:00",
     "gamedb/15560/articles/63304": "2026-10-08T12:00+09:00",
     "gamedb/15560/articles/64930": "2026-10-27T17:20+09:00",
     "gamedb/15583/articles/63807": "2026-09-29T15:20+09:00",
@@ -915,6 +925,7 @@
     "gamedb/17435/articles/65737": "2026-11-13T13:40+09:00",
     "gamedb/17447/articles/64185": "2026-10-09T13:34+09:00",
     "gamedb/17718/articles/64333": "2026-10-15T07:00+09:00",
+    "gamedb/17745/articles/65952": "2026-11-18T17:58+09:00",
     "gamedb/17795/articles/60876": "2026-10-26T13:40+09:00",
     "gamedb/17815": "2026-09-30T15:10+09:00",
     "gamedb/17889": "2026-10-05T14:00+09:00",
@@ -1190,6 +1201,7 @@
     "gamedb/5556/articles/65567": "2026-11-10T13:50+09:00",
     "gamedb/5600/articles/64691": "2026-10-21T15:40+09:00",
     "gamedb/5600/articles/65081": "2026-10-29T17:50+09:00",
+    "gamedb/5600/articles/65945": "2026-11-18T17:10+09:00",
     "gamedb/5605/articles/63748": "2026-09-28T12:30+09:00",
     "gamedb/5605/articles/63966": "2026-10-02T12:40+09:00",
     "gamedb/5605/articles/64186": "2026-10-09T16:10+09:00",
@@ -1208,6 +1220,7 @@
     "gamedb/6253/articles/65066": "2026-10-29T15:50+09:00",
     "gamedb/6253/articles/65276": "2026-11-03T19:00+09:00",
     "gamedb/6253/articles/65662": "2026-11-12T12:20+09:00",
+    "gamedb/6253/articles/65946": "2026-11-18T17:20+09:00",
     "gamedb/647/articles/65730": "2026-11-16T12:40+09:00",
     "gamedb/6485/articles/64439": "2026-10-15T20:40+09:00",
     "gamedb/6485/articles/65715": "2026-11-12T20:10+09:00",
@@ -1334,7 +1347,8 @@
     "gamedb/article/show/588208": "2026-11-18T11:40+09:00",
     "lp.gamewith.jp/aniimo/vtuber_vol1-1": "2026-10-05T18:00+09:00",
     "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3": "2026-11-11T18:00+09:00",
-    "lp.gamewith.jp/wutheringwaves/vtuber_vol1": "2026-10-16T18:00+09:00"
+    "lp.gamewith.jp/wutheringwaves/vtuber_vol1": "2026-10-16T18:00+09:00",
+    "pc/article/show/4449": "2026-11-18T17:42+09:00"
   },
   "queue": []
 }
