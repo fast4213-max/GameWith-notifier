@@ -272,11 +272,11 @@
       "url": "https://gamewith.jp/gamedb/18716"
     },
     "18738": {
-      "date_text": "26年11月",
+      "date_text": "11月19日",
       "image_url": "https://img.gamewith.jp/gamedb/games/icons/47f227be13e1dab9d4da084a58abd1da.jpg",
       "last_seen": "2026-11-18",
-      "notified": false,
-      "precision": "month",
+      "notified": true,
+      "precision": "day",
       "title": "ルミナサーガ：夢と冒険のMMORPG",
       "url": "https://gamewith.jp/gamedb/18738"
     },
