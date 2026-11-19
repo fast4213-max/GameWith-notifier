@@ -290,11 +290,11 @@
       "url": "https://gamewith.jp/gamedb/18942"
     },
     "18964": {
-      "date_text": "26年11月",
+      "date_text": "11月24日",
       "image_url": "https://img.gamewith.jp/gamedb/games/icons/52bf240b54dc065a5ac59c629b4982c7.jpg",
       "last_seen": "2026-11-19",
-      "notified": false,
-      "precision": "month",
+      "notified": true,
+      "precision": "day",
       "title": "StudyGameX",
       "url": "https://gamewith.jp/gamedb/18964"
     },
