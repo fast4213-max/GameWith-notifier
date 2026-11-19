@@ -1,6 +1,7 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/article/show/588422",
     "gamedb/12556/articles/65970",
     "gamedb/15524/articles/65965",
     "gamedb/18286/articles/62397",
@@ -1349,6 +1350,7 @@
     "gamedb/article/show/580586": "2026-10-07T17:22+09:00",
     "gamedb/article/show/582684": "2026-10-14T15:16+09:00",
     "gamedb/article/show/588208": "2026-11-18T11:40+09:00",
+    "gamedb/article/show/588422": "2026-11-19T10:30+09:00",
     "lp.gamewith.jp/aniimo/vtuber_vol1-1": "2026-10-05T18:00+09:00",
     "lp.gamewith.jp/chaoszeronightmare/vtubers-vol3": "2026-11-11T18:00+09:00",
     "lp.gamewith.jp/wutheringwaves/vtuber_vol1": "2026-10-16T18:00+09:00",
