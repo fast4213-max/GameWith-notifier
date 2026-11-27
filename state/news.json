@@ -1,6 +1,8 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/11150/articles/66409",
+    "gamedb/8763/articles/66412",
     "gamedb/256/articles/66410",
     "gamedb/13427/articles/66405",
     "gaming-pc/590521",
@@ -883,6 +885,7 @@
     "gamedb/11085/articles/64681": "2026-10-21T11:50+09:00",
     "gamedb/11150/articles/65575": "2026-11-10T16:09+09:00",
     "gamedb/11150/articles/66260": "2026-11-25T23:25+09:00",
+    "gamedb/11150/articles/66409": "2026-11-27T22:00+09:00",
     "gamedb/11191/articles/66223": "2026-11-25T15:00+09:00",
     "gamedb/11350/articles/64000": "2026-10-05T11:00+09:00",
     "gamedb/11360/articles/64983": "2026-10-28T12:17+09:00",
@@ -1566,6 +1569,7 @@
     "gamedb/8636/articles/63786": "2026-09-29T11:39+09:00",
     "gamedb/8723/articles/20100": "2026-11-27T13:50+09:00",
     "gamedb/8763/articles/65185": "2026-10-30T23:12+09:00",
+    "gamedb/8763/articles/66412": "2026-11-27T21:02+09:00",
     "gamedb/916/articles/63929": "2026-10-01T16:00+09:00",
     "gamedb/916/articles/65760": "2026-11-13T19:55+09:00",
     "gamedb/9233/articles/65352": "2026-11-05T17:56+09:00",
