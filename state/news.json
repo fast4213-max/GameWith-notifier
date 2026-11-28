@@ -1,6 +1,7 @@
 {
   "consecutive_errors": 0,
   "known_ids": [
+    "gamedb/6824/articles/66411",
     "gamedb/11150/articles/66409",
     "gamedb/8763/articles/66412",
     "gamedb/256/articles/66410",
@@ -1465,6 +1466,7 @@
     "gamedb/6784/articles/65813": "2026-11-16T11:20+09:00",
     "gamedb/6824/articles/64488": "2026-10-16T15:56+09:00",
     "gamedb/6824/articles/65231": "2026-11-02T14:15+09:00",
+    "gamedb/6824/articles/66411": "2026-11-28T08:47+09:00",
     "gamedb/6848/articles/63777": "2026-09-28T18:40+09:00",
     "gamedb/6848/articles/64596": "2026-10-19T17:50+09:00",
     "gamedb/687/articles/64324": "2026-10-13T19:50+09:00",
